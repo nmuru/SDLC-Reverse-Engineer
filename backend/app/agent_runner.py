@@ -137,7 +137,10 @@ def run_phase_agent(
     workspace: Path,
     repo_url: str,
     previous_output: Optional[str] = None,
-    opencode_executable: str = "opencode",
+    opencode_executable: str = os.getenv(
+        "OPENCODE_EXECUTABLE",
+        "opencode",
+    ),
     provider: str = "openrouter",
     model: str = "z-ai/glm-5.3-flash",
     api_key: Optional[str] = None,
@@ -199,14 +202,16 @@ Follow the loaded skill's investigation workflow and output requirements.
 This is a read-only documentation task. Do not modify the target repository.
 """.strip()
 
-    if os.name == "nt":
+    if os.path.isfile(opencode_executable):
+        resolved_opencode = opencode_executable
+    elif os.name == "nt":
         resolved_opencode = shutil.which("opencode.cmd")
     else:
         resolved_opencode = shutil.which(opencode_executable)
 
     if not resolved_opencode:
         raise AgentRunnerError(
-            f"OpenCode executable '{opencode_executable}' was not found in PATH."
+            f"OpenCode executable '{opencode_executable}' was not found."
         )
 
     opencode_model = _opencode_model_identifier(provider, model)
