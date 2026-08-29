@@ -1,0 +1,213 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>software-requirements</title>
+
+<style>
+body {
+    margin: 0;
+    background: #f6f7f9;
+    color: #1f2937;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 28px;
+    background: #fff;
+    min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    line-height: 1.25;
+    margin-top: 1.5em;
+}
+
+p, li {
+    line-height: 1.6;
+}
+
+table {
+    border-collapse: collapse;
+    margin: 18px 0;
+    width: 100%;
+}
+
+td {
+    border: 1px solid #d1d5db;
+    padding: 8px;
+    text-align: left;
+    vertical-align: top;
+}
+
+pre {
+    background: #111827;
+    color: #f9fafb;
+    overflow: auto;
+    padding: 16px;
+    border-radius: 8px;
+}
+
+code {
+    background: #eef0f3;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+pre code {
+    background: transparent;
+    padding: 0;
+}
+
+a {
+    color: #2563eb;
+}
+
+.mermaid {
+    overflow-x: auto;
+    margin: 24px 0;
+    padding: 12px;
+}
+</style>
+
+<script type="module">
+import mermaid from
+    "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+mermaid.initialize({
+    startOnLoad: true,
+    securityLevel: "loose",
+    theme: "default",
+});
+</script>
+
+</head>
+
+<body>
+<main>
+<h1>Software Requirements</h1>
+<h2>Overview</h2>
+<p>This document specifies the software requirements for <strong>Next.js Commerce</strong>, a high-performance e-commerce application built with Next.js App Router, React Server Components, and integrated with Shopify as a headless commerce platform.</p>
+<h2>Business Purpose</h2>
+<p>Next.js Commerce is a server-rendered e-commerce application designed to provide a modern, responsive online store experience. It leverages Next.js App Router with React Server Components for fast, scalable rendering, integrates with Shopify as a headless commerce provider for product data and ordering, and delivers a seamless shopping experience across devices.</p>
+<h2>Functional Requirements</h2>
+<h3>Product Browsing and Discovery</h3>
+<ul>
+<li><strong>RB-001</strong>: Users can browse products by category/collection through the main navigation and search interface.</li>
+<li><strong>RB-002</strong>: Product listing pages display product grids with images, titles, descriptions, and pricing.</li>
+<li><strong>RB-003</strong>: Product detail pages provide comprehensive views including images, descriptions, SEO metadata, and related products.</li>
+<li><strong>RB-004</strong>: Search functionality allows filtering products by collection, keyword, or sorting criteria (relevance, best-selling, newest, price range).</li>
+</ul>
+<h3>Shopping Cart Management</h3>
+<ul>
+<li><strong>RB-005</strong>: Users can add products to their cart via product detail pages and cart overview.</li>
+<li><strong>RB-006</strong>: Cart maintains item quantities and calculates totals (subtotal, tax, shipping).</li>
+<li><strong>RB-007</strong>: Users can view cart contents, modify quantities, and remove items.</li>
+<li><strong>RB-008</strong>: Checkout flow initiates order creation (handled via Shopify integration).</li>
+</ul>
+<h3>Product Recommendations</h3>
+<ul>
+<li><strong>RB-009</strong>: The system provides personalized product recommendations based on user activity and catalog popularity.</li>
+<li><strong>RB-010</strong>: Recommended products are displayed on product pages and in dedicated recommendation sections.</li>
+</ul>
+<h3>SEO and Metadata</h3>
+<ul>
+<li><strong>RB-011</strong>: Every product page generates structured data (JSON-LD Schema.org Product) with title, description, images, and availability.</li>
+<li><strong>RB-012</strong>: Pages include OpenGraph meta tags for social media sharing and SEO optimization.</li>
+</ul>
+<h3>Responsive Design</h3>
+<ul>
+<li><strong>RB-013</strong>: Application is fully responsive, adapting layouts for mobile, tablet, and desktop viewports.</li>
+<li><strong>RB-014</strong>: Touch-friendly controls and navigation for mobile users.</li>
+</ul>
+<h2>Non-Functional Requirements</h2>
+<h3>Performance</h3>
+<ul>
+<li><strong>NRP-001</strong>: Initial page loads prioritize server-side rendering for fast Time-to-First-Byte.</li>
+<li><strong>NRP-002</strong>: Product listings and detail pages render efficiently with minimal network round trips.</li>
+<li><strong>NRP-003</strong>: Caching strategies are employed for cart state and product data (using Next.js cache primitives).</li>
+</ul>
+<h3>Scalability</h3>
+<ul>
+<li><strong>NRP-004</strong>: System supports concurrent user sessions with shared Shopify inventory data.</li>
+<li><strong>NRP-005</strong>: Horizontal scaling is achievable through stateless server components and distributed caching.</li>
+</ul>
+<h3>Security</h3>
+<ul>
+<li><strong>SR-001</strong>: All Shopify API communications are authenticated via Storefront Access Token.</li>
+<li><strong>SR-002</strong>: Sensitive environment variables (Shopify credentials) are not committed to version control.</li>
+<li><strong>SR-003</strong>: Input validation and sanitization prevent XSS and injection attacks.</li>
+</ul>
+<h3>Reliability</h3>
+<ul>
+<li><strong>RR-001</strong>: Graceful degradation when Shopify API is unavailable (displays cached data or error states).</li>
+<li><strong>RR-002</strong>: Error handling provides meaningful feedback to users without exposing internal details.</li>
+<li><strong>RR-003</strong>: Cache invalidation occurs on product/collection updates via Shopify webhook triggers.</li>
+</ul>
+<h2>Technical Constraints</h2>
+<table><tbody>
+<tr><td>Constraint</td><td>Description</td></tr>
+<tr><td>Framework</td><td>Must use Next.js (App Router) with React Server Components</td></tr>
+<tr><td>Language</td><td>TypeScript for all source files</td></tr>
+<tr><td>Build Tool</td><td>pnpm (as indicated in package.json)</td></tr>
+<tr><td>Styling</td><td>Tailwind CSS with HeadlessUI for accessible UI components</td></tr>
+<tr><td>Integration</td><td>Shopify GraphQL API (version 2023-01) as headless commerce provider</td></tr>
+<tr><td>Deployment</td><td>Must deploy on Vercel (serverless functions, Edge middleware where appropriate)</td></tr>
+<tr><td>Environment</td><td>Requires SHOPIFY_STORE_DOMAIN and SHOPIFY_STOREFRONT_ACCESS_TOKEN environment variables</td></tr>
+</tbody></table>
+<h2>Quality Attributes</h2>
+<table><tbody>
+<tr><td>Attribute</td><td>Target</td><td>Rationale</td></tr>
+<tr><td>Performance</td><td>Sub-second TTFB</td><td>Critical for e-commerce conversion rates</td></tr>
+<tr><td>Availability</td><td>99.9% uptime</td><td>Expected for public-facing store</td></tr>
+<tr><td>Maintainability</td><td>Clean separation of concerns</td><td>Enables ongoing feature development</td></tr>
+<tr><td>Extensibility</td><td>Plugin-like architecture for new features</td><td>Supports evolving business needs</td></tr>
+</tbody></table>
+<h2>Implementation Details</h2>
+<h3>Core Modules</h3>
+<ul>
+<li><strong>Shopify Integration Layer</strong> (<code>lib/shopify/</code>): Handles GraphQL API calls, data transformation, and cache management.</li>
+<li><strong>UI Components</strong> (<code>app/</code>): Pages, layouts, navigation, and reusable UI elements (cart, product grid, gallery).</li>
+<li><strong>State Management</strong> (<code>lib/</code>: Types, utils, and custom hooks for cart and product state.</li>
+<li><strong>Server Actions</strong> (<code>app/</code>): Client-side mutations for cart operations (add, remove, update).</li>
+</ul>
+<h3>Data Flow</h3>
+<p>1. <strong>User Request</strong> → Route handler (Next.js App Router) → Component renders.</p>
+<p>2. <strong>Component</strong> → Calls Shopify API via <code>shopifyFetch</code> utility → Receives product/cart data.</p>
+<p>3. <strong>UI</strong> → Renders product cards, detail views, and cart summaries.</p>
+<p>4. <strong>Cache</strong> → Next.js cache layers store cart and product state for performance.</p>
+<h3>Key Interfaces</h3>
+<ul>
+<li><strong>Product API</strong> (<code>lib/shopify/types.ts</code>): Defines Shopify entity shapes (Product, Collection, Cart, CartItem).</li>
+<li><strong>Cart Operations</strong> (<code>lib/shopify/mutations/cart.ts</code>): GraphQL mutations for cart CRUD.</li>
+<li><strong>Search Interface</strong> (<code>app/[page]/search/</code>): Collection-based product discovery.</li>
+<li><strong>SEO Layer</strong> (<code>app/[page]/metadata.ts</code>): Generates JSON-LD structured data for each page.</li>
+</ul>
+<h2>Verification Criteria</h2>
+<p>All requirements shall be validated through:</p>
+<ul>
+<li>Code reviews of core modules (Shopify integration, cart logic, UI components)</li>
+<li>End-to-end testing of critical user journeys (browse → add to cart → view cart)</li>
+<li>Performance benchmarking (TTFB, Largest Contentful Paint)</li>
+<li>Security scanning (environment variable exposure, API authentication)</li>
+<li>Cross-browser compatibility testing (Chrome, Firefox, Safari, Edge)</li>
+</ul>
+<h2>Open Issues</h2>
+<ul>
+<li><strong>Missing</strong>: Comprehensive unit test suite (no test files detected in the repository).</li>
+<li><strong>Pending</strong>: Detailed documentation for custom hooks and utility functions.</li>
+<li><strong>Under Review</strong>: Cache invalidation strategy for rapid Shopify updates.</li>
+</ul>
+<h2>References</h2>
+<ul>
+<li><a href="https://github.com/vercel/commerce">Next.js Commerce Template</a></li>
+<li><a href="https://shopify.dev/docs/guides/headless-commerce">Shopify Headless Commerce Docs</a></li>
+<li><a href="https://vercel.com/docs">Vercel Documentation</a></li>
+</ul>
+</main>
+</body>
+</html>

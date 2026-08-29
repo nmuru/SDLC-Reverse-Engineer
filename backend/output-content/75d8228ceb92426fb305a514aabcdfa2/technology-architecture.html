@@ -1,0 +1,287 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>technology-architecture</title>
+<style>
+body{margin:0;background:#f6f7f9;color:#1f2937;font-family:Arial,Helvetica,sans-serif}
+main{max-width:900px;margin:0 auto;padding:40px 28px;background:#fff;min-height:100vh}
+h1,h2,h3,h4,h5,h6{line-height:1.25;margin-top:1.5em}
+p,li{line-height:1.6}
+table{border-collapse:collapse;margin:18px 0;width:100%}
+td{border:1px solid #d1d5db;padding:8px;text-align:left;vertical-align:top}
+pre{background:#111827;color:#f9fafb;overflow:auto;padding:16px;border-radius:8px}
+code{background:#eef0f3;padding:2px 4px;border-radius:3px}
+pre code{background:transparent;padding:0}
+a{color:#2563eb}
+</style>
+</head>
+<body><main><h1>Technology Architecture — NetworkPro (repository <code>nmuru/CareerPro-v2</code>)</h1>
+<h2>1. System Overview</h2>
+<p>NetworkPro is a <strong>single-process, full-stack JavaScript/TypeScript web application</strong>: a React single-page application and an Express REST API are built from one repository and run inside <strong>one Node.js process</strong>, which serves both the JSON API (under <code>/api/*</code>) and the browser client.</p>
+<p>The system&#x27;s runtime footprint is deliberately small:</p>
+<ul>
+<li>A <strong>browser client</strong> renders four tab-based views (Home → Career Interests → Networking → Jobs) driven by local tab state rather than URL routing.</li>
+<li>A <strong>Node.js/Express server</strong> exposes a small REST API, receives LinkedIn profile PDF uploads, &quot;extracts&quot; profile data (simulated), persists user-entered data in <strong>volatile in-process memory</strong>, and serves the frontend in both development and production modes.</li>
+<li>There is <strong>no database, no background worker, no message queue, no authentication enforcement, and no outbound server-side integration</strong> in the active execution path.</li>
+</ul>
+<p>A significant architectural fact: the repository declares a <strong>PostgreSQL persistence stack (Drizzle ORM + Neon serverless driver)</strong> in its dependencies and schema, but the running application uses an <strong>in-memory storage implementation</strong> instead. Several other declared capabilities (Passport authentication, WebSocket library, real PDF parsing libraries) exist only as dormant dependencies. These are classified explicitly below.</p>
+<p>---</p>
+<h2>2. Architecture Diagram</h2>
+<p>Solid arrows mark relationships verified in source code; dashed arrows mark inferred or dormant relationships.</p>
+<pre><code class="language-mermaid">flowchart TB
+    USER([End User / Browser])
+
+    subgraph CLIENT[&quot;React 18 SPA — built with Vite&quot;]
+        APP[&quot;App shell — tab state machine\n(Home → Interests → Networking → Jobs)&quot;]
+        RQ[&quot;TanStack Query\nsame-origin fetch, credentials=include&quot;]
+        THEME[&quot;ThemeProvider\nbrowser localStorage: &#x27;networkpro-theme&#x27;&quot;]
+    end
+
+    subgraph NODE[&quot;Node.js single process — HTTP server on 0.0.0.0:5000&quot;]
+        subgraph EXPRESS[&quot;Express 4 application&quot;]
+            MW[&quot;Middleware chain:\njson/urlencoded body parsing,\n/api request logger, global error handler&quot;]
+            API[&quot;REST endpoints under /api/*\nprofile • interests • recommendations\ncareer-goals • saved-items&quot;]
+            UPLOAD[&quot;Multer upload handler\nmemory storage · PDF mime only · ≤ 5 MB&quot;]
+            PDFSIM[&quot;Simulated PDF text extraction\n+ regex profile-field parsing&quot;]
+            MOCKGEN[&quot;Static mock generators\npeople / posts / jobs / courses / skills&quot;]
+            DEVMODE[&quot;Vite middleware mode (dev)\nHMR over the shared HTTP server&quot;]
+            PRODMODE[&quot;express.static dist/public (prod)\n+ SPA index.html fallback&quot;]
+        end
+        MEM[(&quot;MemStorage\nin-memory Maps\n(IStorage interface)\nvolatile — resets on restart&quot;)]
+    end
+
+    IMG1[&quot;randomuser.me — avatar images&quot;]
+    IMG2[&quot;logo.clearbit.com — company logos&quot;]
+    IMG3[&quot;images.unsplash.com — course thumbnails&quot;]
+    FONT[&quot;fonts.googleapis.com — Inter font&quot;]
+
+    subgraph DORMANT[&quot;Declared but dormant infrastructure&quot;]
+        PG[(&quot;PostgreSQL target schema\nusers · profiles · interests\nsaved_items · career_goals&quot;)]
+        KIT[&quot;drizzle-kit + DATABASE_URL\n(migrations never generated)\n@neondatabase/serverless driver&quot;]
+        AUTHZ[&quot;passport / passport-local\nconnect-pg-simple / memorystore\nexpress-session&quot;]
+    end
+
+    USER --&gt;|&quot;HTTPS| UI interaction&quot;| APP
+    APP --- RQ
+    APP --- THEME
+    RQ --&gt;|&quot;HTTP REST / JSON\n+served from same Node process (dev: Vite middleware, prod: static files)&quot;| API
+    USER --&gt;|&quot;multipart file upload\nPOST /api/profile/upload&quot;| API
+
+    MW --&gt; API
+    API --&gt; UPLOAD --&gt; PDFSIM --&gt; MEM
+    API --&gt; MOCKGEN
+    API --&gt; MEM
+    DEVMODE -.-&gt;|&quot;dev only&quot;| USER
+    PRODMODE -.-&gt;|&quot;prod only&quot;| USER
+
+    APP -.-&gt;|&quot;image/font URLs embedded in mock data&quot;| IMG1
+    APP -.-&gt; IMG2
+    APP -.-&gt; IMG3
+    APP -.-&gt; FONT
+
+    KIT -.-&gt;|&quot;defined, no runtime consumer&quot;| PG
+    AUTHZ -.-&gt;|&quot;no imports, no runtime use&quot;| PG</code></pre>
+<p>---</p>
+<h2>3. Major Runtime Components</h2>
+<h3>3.1 Browser Client — React 18 SPA</h3>
+<table><tbody>
+<tr><td>Aspect</td><td>Detail</td></tr>
+<tr><td>Responsibility</td><td>Presents the four-tab career-guidance workflow; manages server-state caching, uploads, and theme persistence</td></tr>
+<tr><td>Technology</td><td>React 18, TypeScript, Vite 5, TanStack React Query 5, Tailwind CSS 3 + Radix UI primitives (shadcn/ui pattern), lucide-react icons</td></tr>
+<tr><td>Location</td><td><code>client/</code> — entry <code>client/index.html</code> → <code>client/src/main.tsx</code> → <code>client/src/App.tsx</code></td></tr>
+<tr><td>Inputs</td><td>User interactions (tab clicks, form edits, PDF file selection, save/bookmark actions)</td></tr>
+<tr><td>Outputs</td><td>Same-origin HTTP calls to <code>/api/*</code>; image/font loads to third-party CDNs</td></tr>
+<tr><td>Certainty</td><td>Verified — full source present, all imports traceable</td></tr>
+</tbody></table>
+<p>Notes:</p>
+<ul>
+<li>Navigation is <strong>component-local state</strong>, not URL routing: <code>App.tsx</code> holds <code>activeTab</code> in <code>useState</code> and switches among <code>HomeTab</code>, <code>InterestsTab</code>, <code>NetworkingTab</code>, <code>JobsTab</code>. The <code>wouter</code> router is declared in <code>package.json</code> but imported nowhere.</li>
+<li>All server communication goes through two primitives: <code>getQueryFn</code>/<code>apiRequest</code> in <code>client/src/lib/queryClient.ts</code> (relative-URL <code>fetch</code>, <code>credentials: &quot;include&quot;</code>) and the multipart uploader in <code>client/src/lib/pdf-parser.ts</code> (<code>POST /api/profile/upload</code>). Because URLs are relative, the API is addressed same-origin — there is no separate API host or CORS configuration.</li>
+<li>Theme (light/dark) is the only client-persistent browser state, stored in <code>localStorage</code> under <code>networkpro-theme</code> (<code>main.tsx</code>, <code>lib/theme-provider.tsx</code>).</li>
+<li>A localStorage data layer for profiles/saved items exists in <code>client/src/lib/storage.ts</code> but is <strong>not imported by any page, hook, or component</strong> — it is dead code alongside the server-backed <code>useSavedItems</code> hook that components actually consume.</li>
+</ul>
+<h3>3.2 API Server — Node.js / Express</h3>
+<table><tbody>
+<tr><td>Aspect</td><td>Detail</td></tr>
+<tr><td>Responsibility</td><td>Hosts all business endpoints, validates/uploads the PDF, produces recommendations, delegates persistence</td></tr>
+<tr><td>Technology</td><td>Node.js, Express 4, Multer 1.4, native <code>http.createServer</code></td></tr>
+<tr><td>Location</td><td><code>server/index.ts</code> (bootstrap), <code>server/routes.ts</code> (all endpoints and logic), <code>server/vite.ts</code> (mode-dependent client delivery)</td></tr>
+<tr><td>Inputs</td><td>HTTP requests: JSON bodies, query params, multipart PDF uploads</td></tr>
+<tr><td>Outputs</td><td>JSON responses; the constructed <code>http.Server</code> listening on <strong>port 5000, host 0.0.0.0</strong></td></tr>
+<tr><td>Certainty</td><td>Verified — executable end-to-end source; <code>npm run dev</code> (<code>tsx server/index.ts</code>) and bundled <code>npm start</code> both execute this path</td></tr>
+</tbody></table>
+<p>Endpoints registered in <code>registerRoutes()</code> (<code>server/routes.ts</code>):</p>
+<table><tbody>
+<tr><td>Method &amp; Path</td><td>Behavior</td><td>Backing data</td></tr>
+<tr><td><code>POST /api/profile/upload</code></td><td>Multer (memory storage, <code>application/pdf</code> only, 5 MB cap) → simulated text extraction → regex profile parsing → upsert</td><td>MemStorage</td></tr>
+<tr><td><code>GET / PUT /api/profile</code></td><td>Fetch / update the fixed demo profile</td><td>MemStorage</td></tr>
+<tr><td><code>GET /api/interests/suggestions</code></td><td>Static suggestion payload</td><td>Hardcoded (<code>suggestInterests</code>)</td></tr>
+<tr><td><code>POST / GET /api/interests</code></td><td>Save / list interests</td><td>MemStorage</td></tr>
+<tr><td><code>GET /api/recommendations/networking</code></td><td>People to follow/connect, trending posts</td><td>Static mock arrays</td></tr>
+<tr><td><code>GET /api/recommendations/jobs</code></td><td>Job openings, courses, skills</td><td>Static mock arrays</td></tr>
+<tr><td><code>POST / GET /api/career-goals</code></td><td>Save / list career goals (with default fallback payload)</td><td>MemStorage</td></tr>
+<tr><td><code>POST /api/saved-items</code>, <code>DELETE /api/saved-items/:id</code>, <code>GET /api/saved-items</code></td><td>Bookmark CRUD filtered by type</td><td>MemStorage</td></tr>
+</tbody></table>
+<p>Every mutating/read endpoint pins the identity to <strong><code>userId = 1</code></strong> (commented &quot;For demo, we&#x27;ll use userId 1&quot;). The server performs <strong>zero outbound network calls</strong>: a search of <code>server/<em>.ts</code> finds no <code>fetch</code>, <code>axios</code>, or raw HTTP client usage, and no model/AI provider SDK is initialized. Despite README marketing language (&quot;AI-powered&quot;), recommendation generation is deterministic static data, and PDF extraction explicitly simulates rather than parses (the in-file comment reads </em>&quot;Simulated PDF text extraction (no actual parsing…)&quot;*).</p>
+<h3>3.3 Persistence Layer — In-Memory Store (active)</h3>
+<table><tbody>
+<tr><td>Aspect</td><td>Detail</td></tr>
+<tr><td>Responsibility</td><td>Implements all repository operations behind the <code>IStorage</code> interface</td></tr>
+<tr><td>Technology</td><td>Plain TypeScript <code>Map</code>s inside the Node process (<code>MemStorage</code>)</td></tr>
+<tr><td>Location</td><td><code>server/storage.ts</code></td></tr>
+<tr><td>Contents</td><td>A demo user (<code>demo</code> / <code>password</code>, plaintext) seeded in the constructor; profiles; interests; saved items; career goals</td></tr>
+<tr><td>Durability</td><td><strong>None</strong> — all data lives in RAM and is lost on process restart; uploads leave no filesystem artifacts (multer uses <code>memoryStorage()</code>)</td></tr>
+<tr><td>Certainty</td><td>Verified — <code>export const storage = new MemStorage()</code> is the only instantiated store, consumed directly by every route</td></tr>
+</tbody></table>
+<p>The <code>IStorage</code> interface is a meaningful architectural seam: swapping <code>MemStorage</code> for a database-backed implementation would require no route changes. That seam exists precisely because a Drizzle/PostgreSQL implementation was scaffolded but never completed (see §5).</p>
+<h3>3.4 Build &amp; Serving Boundary — Vite dual-mode delivery</h3>
+<table><tbody>
+<tr><td>Aspect</td><td>Detail</td></tr>
+<tr><td>Responsibility</td><td>Compiles the SPA and decides how the client reaches the browser per environment</td></tr>
+<tr><td>Development</td><td><code>setupVite()</code> attaches Vite in <strong>middleware mode</strong> to the same Express HTTP server (HMR piggybacks on port 5000); <code>index.html</code> is re-read from disk per request with a cache-busting <code>nanoid</code> query param</td></tr>
+<tr><td>Production</td><td><code>serveStatic()</code> serves <code>dist/public</code> with an SPA fallback to <code>index.html</code></td></tr>
+<tr><td>Selection</td><td><code>app.get(&quot;env&quot;) === &quot;development&quot; ? setupVite : serveStatic</code> in <code>server/index.ts</code></td></tr>
+<tr><td>Certainty</td><td>Verified — <code>server/vite.ts</code>, <code>vite.config.ts</code>, build script <code>&quot;build&quot;: &quot;vite build &amp;&amp; esbuild server/index.ts … --outdir=dist&quot;</code></td></tr>
+</tbody></table>
+<p>Vite configuration details that shape boundaries (<code>vite.config.ts</code>):</p>
+<ul>
+<li>Path aliases: <code>@</code> → <code>client/src</code>, <code>@shared</code> → <code>shared/</code>, <code>@assets</code> → <code>attached_assets/</code> (mirrored in <code>tsconfig.json</code>).</li>
+<li>Client build output goes to <code>dist/public</code>, matching what <code>serveStatic</code> resolves when the server bundle lands in <code>dist/</code>.</li>
+<li>Replit-specific integrations are compiled in: <code>@replit/vite-plugin-shadcn-theme-json</code> (consumes <code>theme.json</code>), <code>@replit/vite-plugin-runtime-error-modal</code>, and <code>@replit/vite-plugin-cartographer</code> — the latter gated on <code>process.env.REPL_ID</code>, so it activates only inside the Replit IDE environment.</li>
+</ul>
+<p>---</p>
+<h2>4. Major Communication &amp; Data Flows</h2>
+<p>All verified flows occur within <strong>two boundaries</strong>: the user&#x27;s browser and the single Node process.</p>
+<p><strong>Flow 1 — Profile upload (primary workflow)</strong></p>
+<p>1. User selects a LinkedIn PDF in <code>HomeTab</code>; the FileUploader passes it to <code>useLinkedInProfile.handleFileUpload</code>.</p>
+<p>2. <code>parsePDF</code> (<code>client/src/lib/pdf-parser.ts</code>) posts <code>multipart/form-data</code> to <code>POST /api/profile/upload</code> (same origin).</p>
+<p>3. Multer buffers the file in server memory and enforces MIME + size rules.</p>
+<p>4. <code>extractTextFromPdf</code> ignores the actual bytes and returns a canned sample-profile string; <code>extractProfileFromText</code> regex-parses name/headline/location/company/skills/education/experience with placeholder fallbacks.</p>
+<p>5. <code>storage.createProfile/updateProfile</code> upserts row id-tagged to <code>userId=1</code> in <code>MemStorage</code>; the created record returns as JSON.</p>
+<p>6. React Query writes it into cache (<code>setQueryData(&#x27;/api/profile&#x27;)</code>), so subsequent tabs read it without refetching.</p>
+<p><strong>Flow 2 — Recommendation retrieval</strong>: <code>NetworkingTab</code>/<code>JobsTab</code> mount → React Query GETs <code>/api/recommendations/{networking,jobs}</code> → server assembles fixed arrays → JSON returned → cached with 5-minute staleness. No user/profile input influences the payloads beyond endpoint selection.</p>
+<p><strong>Flow 3 — Structured user input</strong>: interests and career goals are saved via <code>POST</code> mutations from <code>InterestsTab</code>/<code>JobsTab</code>, persisted in memory maps keyed to <code>userId=1</code>, invalidated/cached client-side.</p>
+<p><strong>Flow 4 — Bookmarks</strong>: card components (<code>job-card</code>, <code>course-card</code>, <code>post-card</code>, <code>recommendation-card</code>, <code>skill-card</code>) invoke <code>useSavedItems</code> → POST/DELETE <code>/api/saved-items*</code> → MemStorage CRUD → query invalidation refreshes lists.</p>
+<p><strong>Flow 5 — Asset loading (outbound from browser only)</strong>: mock payloads embed third-party image URLs — <code>randomuser.me</code> avatars, <code>logo.clearbit.com</code> logos, <code>images.unsplash.com</code> course covers — fetched directly by the browser; Google Fonts supplies the Inter typeface via <code>client/index.html</code>. These loads do not transit the server.</p>
+<p>---</p>
+<h2>5. Data Stores and State — Verified vs. Dormant</h2>
+<p>This is the most important distinction in the architecture:</p>
+<p><strong>Active state (verified):</strong></p>
+<table><tbody>
+<tr><td>State</td><td>Where</td><td>Lifetime</td></tr>
+<tr><td>Profiles, interests, saved items, career goals</td><td><code>MemStorage</code> Maps in Node heap</td><td>Process lifetime only</td></tr>
+<tr><td>Demo user account (<code>demo</code>/<code>password</code>)</td><td>Seeded in <code>MemStorage</code> constructor</td><td>Process lifetime</td></tr>
+<tr><td>UI theme selection</td><td>Browser <code>localStorage</code> (<code>networkpro-theme</code>)</td><td>Persistent, per-browser</td></tr>
+<tr><td>Uploaded PDF bytes</td><td>Multer memory buffer, discarded per-request</td><td>Request lifetime</td></tr>
+<tr><td>Server state cache</td><td>React Query cache</td><td>Page session</td></tr>
+</tbody></table>
+<p><strong>Dormant persistence stack (declared but unwired)</strong>:</p>
+<ul>
+<li><code>shared/schema.ts</code> defines five PostgreSQL tables via Drizzle (<code>users</code>, <code>profiles</code>, <code>interests</code>, <code>saved_items</code>, <code>career_goals</code>) with Zod insert schemas derived through <code>drizzle-zod</code> — this module is imported <strong>only</strong> by <code>server/storage.ts</code> for TypeScript types; the table definitions themselves have no database connection behind them.</li>
+<li><code>drizzle.config.ts</code> requires <code>DATABASE_URL</code>, targets dialect <code>postgresql</code>, outputs to <code>./migrations</code> — but no <code>migrations/</code> directory exists in the repository, so no migration was ever generated.</li>
+<li><code>@neondatabase/serverless</code> (Neon-managed Postgres driver) sits in dependencies with zero imports; <code>connect-pg-simple</code> and <code>memorystore</code> (session stores for <code>express-session</code>) likewise appear in no source file.</li>
+<li>No <code>.env</code> file is committed (README documents <code>DATABASE_URL</code> and <code>SESSION_SECRET</code> as expected variables); neither variable is read anywhere outside <code>drizzle.config.ts</code>.</li>
+</ul>
+<p>Per repository convention, the PostgreSQL layer is therefore classified as <strong>declared scaffolding toward durable persistence, architecturally intended but not part of the running system</strong>. Any claim that the deployed app uses a database would be unsupported.</p>
+<p>---</p>
+<h2>6. External Systems</h2>
+<table><tbody>
+<tr><td>System</td><td>Role</td><td>Direction</td><td>Certainty</td></tr>
+<tr><td>randomuser.me</td><td>Avatar imagery in mock networking data</td><td>Browser → CDN (read-only images)</td><td>Verified (URLs in <code>server/routes.ts</code>)</td></tr>
+<tr><td>logo.clearbit.com</td><td>Company logos in job cards</td><td>Browser → CDN</td><td>Verified (URLs in <code>server/routes.ts</code>)</td></tr>
+<tr><td>images.unsplash.com</td><td>Course thumbnail imagery</td><td>Browser → CDN</td><td>Verified (URLs in <code>server/routes.ts</code>)</td></tr>
+<tr><td>Google Fonts</td><td>Inter webfont</td><td>Browser → Font CDN</td><td>Verified (<code>client/index.html</code>)</td></tr>
+<tr><td>AI/LLM provider</td><td><strong>None present</strong> — no SDK, API client, key handling, or outbound call exists server-side</td><td>—</td><td>Verified absence</td></tr>
+<tr><td>LinkedIn</td><td>No OAuth/API integration; the product brief (<code>attached_assets/…NetworkPro…txt</code>) explicitly substitutes PDF upload for OAuth &quot;for now&quot;</td><td>—</td><td>Verified absence</td></tr>
+</tbody></table>
+<p>Because these CDN loads are cosmetic assets referenced inside mock data, they do not constitute functional service integrations.</p>
+<p>---</p>
+<h2>7. Security &amp; Trust Boundaries</h2>
+<ul>
+<li><strong>No authentication or authorization is enforced.</strong> Passport/passport-local are declared dependencies with no strategy, middleware, or login route anywhere in <code>server/</code>. Every request operates as the hardcoded demo user. The seeded credentials are stored in plaintext.</li>
+<li><strong>No session infrastructure is active</strong>: <code>express-session</code> is declared but never imported, so the <code>credentials: &quot;include&quot;</code> fetch policy on the client has no cookies to carry.</li>
+<li><strong>Upload surface</strong>: the only external-input path for binary data is the multer handler, constrained to <code>application/pdf</code> and 5 MB; because the buffer is never actually parsed, attack exposure is limited in practice, though upload validation itself (MIME-string check) is trivially spoofable.</li>
+<li><strong>Same-origin model</strong>: no CORS middleware is configured; the design assumes the API and client share one origin, which matches the single-process deployment. Notably, the PUT/POST handlers assign request bodies to storage without Zod validation at the route level (the generated insert schemas exist but are unused), so server-side input validation is weak.</li>
+<li>The security posture is consistent with a demo/prototype system operated in a sandboxed IDE, not with a multi-user production service.</li>
+</ul>
+<p>---</p>
+<h2>8. Configuration Boundaries</h2>
+<p>Configuration that materially affects architecture:</p>
+<table><tbody>
+<tr><td>Setting</td><td>Effect</td><td>Read at</td></tr>
+<tr><td><code>NODE_ENV</code></td><td>Chooses Vite-middleware dev serving vs. static production serving; production build flags</td><td><code>server/index.ts</code>, <code>vite.config.ts</code>, <code>package.json</code> scripts</td></tr>
+<tr><td><code>REPL_ID</code></td><td>Gates activation of the Replit cartographer plugin — this is the only marker distinguishing Replit-hosted dev environments</td><td><code>vite.config.ts</code></td></tr>
+<tr><td><code>DATABASE_URL</code></td><td>Required by <code>drizzle-kit push</code> (<code>npm run db:push</code>); irrelevant to the running server since nothing connects to Postgres</td><td><code>drizzle.config.ts</code></td></tr>
+<tr><td>Port/host</td><td>Hard-coded: <strong>5000 / 0.0.0.0</strong> with <code>reusePort: true</code> (a Linux/Replit-oriented option); not configurable via environment</td><td><code>server/index.ts</code></td></tr>
+<tr><td><code>SESSION_SECRET</code></td><td>Documented in README; <strong>never read by any code</strong></td><td>—</td></tr>
+</tbody></table>
+<p>There are no feature flags, secret managers, or remote configuration sources. <code>theme.json</code> feeds only the shadcn theme Vite plugin (design tokens, not runtime behavior).</p>
+<p>---</p>
+<h2>9. Build, Runtime &amp; Deployment Boundaries</h2>
+<p><strong>Toolchain (verified from <code>package.json</code> scripts):</strong></p>
+<ul>
+<li><code>npm run dev</code> → <code>tsx server/index.ts</code> — transpiles-on-the-fly TypeScript server plus embedded Vite dev middleware; one command, one process.</li>
+<li><code>npm run build</code> → <code>vite build</code> (client → <code>dist/public</code>) then <code>esbuild</code> bundles <code>server/index.ts</code> → <code>dist/index.js</code> (ESM, platform=node, packages external).</li>
+<li><code>npm start</code> → <code>NODE_ENV=production node dist/index.js</code> — serves API + built SPA from one process on port 5000.</li>
+<li><code>npm run check</code> → <code>tsc --noEmit</code> type gate over <code>client/src</code>, <code>server</code>, and <code>shared</code> (strict mode).</li>
+<li><code>npm run db:push</code> → <code>drizzle-kit push</code> against <code>DATABASE_URL</code> (schema-push workflow; unused in practice since no migrations exist).</li>
+</ul>
+<p><strong>Deployment evidence:</strong></p>
+<ul>
+<li>The repository contains <strong>no Dockerfile, compose file, Kubernetes manifests, CI workflows, vercel.json, .replit, or Procfile</strong>. </li>
+<li>The README carries badges advertising a Vercel deployment (<code>career-pro-v2.vercel.app</code>) and Replit, and states the app &quot;currently does not have any backend – vercel deployed frontend.&quot; That statement conflicts with the repository, which contains and launches a substantial Express backend; how (or whether) that backend is hosted publicly <strong>cannot be established from the repository</strong> and is treated as unverified.</li>
+<li>Replit provenance is strongly evidenced: the <code>rest-express</code> template naming, hard-coded un-firewalled port 5000 with a comment saying so, Replit Vite plugins, and <code>reusePort</code>. The natural (and likely original) execution context is the Replit workspace, but formal deployment topology remains an inference, not a repo-supported fact.</li>
+<li>Miscellaneous non-code artifacts: <code>project.tar.gz</code> (archived snapshot of the project), <code>generated-icon.png</code>, and <code>attached_assets/</code> holding the original project prompt text and a wireframe image (<code>wf-linkedin.png</code>) — inputs to development rather than runtime components.</li>
+</ul>
+<p>---</p>
+<h2>10. Documented Architecture vs. Implemented Architecture</h2>
+<table><tbody>
+<tr><td>Claim (README/brief)</td><td>Repository reality</td><td>Assessment</td></tr>
+<tr><td>&quot;Currently does not have any backend&quot;</td><td>Full Express API with 12+ endpoints ships and boots via <code>npm run dev</code>/<code>npm start</code></td><td>Documentation outdated relative to code</td></tr>
+<tr><td>Database: PostgreSQL + Drizzle ORM</td><td>Schema and tooling defined; runtime store is in-memory maps; no connection code or migrations</td><td>Partially implemented scaffolding</td></tr>
+<tr><td>&quot;AI-powered&quot; analysis/recommendations</td><td>Deterministic mock generators; simulated PDF extraction returning canned text</td><td>Marketing label, not implemented behavior</td></tr>
+<tr><td>PDF parsing for LinkedIn profiles</td><td>Upload pipeline real; parsing itself stubbed (<code>pdf-parse</code> declared but never imported)</td><td>Stub at the core step</td></tr>
+<tr><td>Environment vars <code>DATABASE_URL</code>, <code>SESSION_SECRET</code></td><td>Only <code>DATABASE_URL</code> is read (by drizzle-kit); <code>SESSION_SECRET</code> unused</td><td>Documentation ahead of code</td></tr>
+<tr><td>Brief envisions OAuth later replaced by PDF upload</td><td>Matches: no auth code at all; upload-centric flow implemented</td><td>Consistent</td></tr>
+<tr><td>Four-tab UX (Home/Interests/Networking/Jobs)</td><td>Exactly four tabs in <code>App.tsx</code>, matching brief order and actions</td><td>Consistent</td></tr>
+</tbody></table>
+<p>---</p>
+<h2>11. Evidence Classification Summary</h2>
+<p><strong>Verified (directly supported):</strong></p>
+<ul>
+<li>Single Node process serving API + client on 0.0.0.0:5000 (<code>server/index.ts</code>)</li>
+<li>Express 4 route surface and multer upload constraints (<code>server/routes.ts</code>)</li>
+<li>In-memory persistence as the sole active store (<code>server/storage.ts</code>)</li>
+<li>React 18/Vite/TanStack Query/Tailwind/Radix client stack and its same-origin fetch discipline (<code>client/src/**</code>, <code>queryClient.ts</code>, <code>pdf-parser.ts</code>)</li>
+<li>Simulated PDF extraction and static recommendation data (<code>server/routes.ts</code> lines marked &quot;Mock&quot;, &quot;Simulated&quot;)</li>
+<li>No outbound server HTTP calls; no auth/session/websocket/db connections at runtime (import graph analysis)</li>
+<li>Dual-mode client delivery — Vite middleware dev vs. <code>express.static</code> production (<code>server/vite.ts</code>)</li>
+<li>Third-party CDN asset references and Google Fonts dependency of the UI</li>
+</ul>
+<p><strong>Strongly inferred:</strong></p>
+<ul>
+<li>Replit as the primary development/runtime context (template conventions, port-5000 comment, REPL_ID gating, Replit plugins)</li>
+<li><code>IStorage</code> as the designed swap-point for future durable persistence (interface mirrors exactly the dormant Drizzle tables)</li>
+</ul>
+<p><strong>Unverified / contradicted:</strong></p>
+<ul>
+<li>Public hosting topology (Vercel badge vs. long-lived server process conflict; no deploy configs present)</li>
+<li>Any real-world Vercel deployment serving the backend</li>
+</ul>
+<p><strong>Apparently unused / dormant:</strong></p>
+<ul>
+<li><code>drizzle-orm</code> runtime queries, <code>@neondatabase/serverless</code>, <code>migrations/</code></li>
+<li><code>passport</code>, <code>passport-local</code>, <code>express-session</code>, <code>connect-pg-simple</code>, <code>memorystore</code></li>
+<li><code>pdf-parse</code> (server) and <code>react-pdf</code>&#x27;s <code>PDFViewer</code> component (defined in <code>components/ui/pdf-viewer.tsx</code>, imported nowhere reachable)</li>
+<li><code>wouter</code> router, <code>ws</code>, client <code>lib/storage.ts</code> localStorage helpers, <code>not-found.tsx</code> (no router to render it), zod insert schemas at route-validation time</li>
+</ul>
+<p>---</p>
+<h2>12. Architectural Unknowns</h2>
+<p>1. <strong>Operational deployment shape</strong> — whether any public instance runs the monolithic server, a serverless-adapted variant, or frontend only, is not determinable from the repository.</p>
+<p>2. <strong>Migration intent timeline</strong> — the schema/tooling imply a planned move to Neon Postgres, but the repository records no progress beyond definitions, so sequencing and completion criteria are unknown.</p>
+<p>3. <strong>Real PDF processing path</strong> — whether a genuine parser was ever planned for the server (via <code>pdf-parse</code>) versus remaining client-side (the PDFViewer/react-pdf remnants suggest an explored client-rendering approach) cannot be resolved conclusively; both directions show abandoned traces.</p>
+<p>4. <strong>Multi-user evolution</strong> — the hardcoded <code>userId = 1</code> demonstrates single-tenant demo scope; whether tenancy was considered beyond the <code>users</code> table is unknown.</p>
+<p>These unknowns mark the boundary between what the code proves and what would require external operational knowledge to confirm.</p></main></body>
+</html>

@@ -1,0 +1,332 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>technology-architecture</title>
+
+<style>
+body {
+    margin: 0;
+    background: #f6f7f9;
+    color: #1f2937;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 28px;
+    background: #fff;
+    min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    line-height: 1.25;
+    margin-top: 1.5em;
+}
+
+p, li {
+    line-height: 1.6;
+}
+
+table {
+    border-collapse: collapse;
+    margin: 18px 0;
+    width: 100%;
+}
+
+td {
+    border: 1px solid #d1d5db;
+    padding: 8px;
+    text-align: left;
+    vertical-align: top;
+}
+
+pre {
+    background: #111827;
+    color: #f9fafb;
+    overflow: auto;
+    padding: 16px;
+    border-radius: 8px;
+}
+
+code {
+    background: #eef0f3;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+pre code {
+    background: transparent;
+    padding: 0;
+}
+
+a {
+    color: #2563eb;
+}
+
+.mermaid {
+    overflow-x: auto;
+    margin: 24px 0;
+    padding: 12px;
+}
+</style>
+
+<script type="module">
+import mermaid from
+    "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+mermaid.initialize({
+    startOnLoad: true,
+    securityLevel: "loose",
+    theme: "default",
+});
+</script>
+
+</head>
+
+<body>
+<main>
+<h1>Technology Architecture</h1>
+<h2>Overview</h2>
+<p>NetworkPro is a monorepo web application built with React and Node.js that provides AI‑powered career networking recommendations. The architecture follows a conventional server‑side rendered single‑page application pattern where a single Express server serves both the React frontend and the REST API on the same port.</p>
+<h2>Architecture Diagram</h2>
+<div class="mermaid">flowchart LR
+    User[&quot;Browser\nUser&quot;]
+    
+    subgraph Runtime[&quot;Node.js Runtime\n(Port 5000)&quot;]
+        Express[&quot;Express Server\nserver/index.ts&quot;]
+        subgraph API[&quot;API Routes\nserver/routes.ts&quot;]
+            ProfileAPI[&quot;Profile API\nPOST /api/profile/upload\nGET /api/profile\nPUT /api/profile&quot;]
+            InterestsAPI[&quot;Interests API\nGET /api/interests\nPOST /api/interests\nGET /api/interests/suggestions&quot;]
+            RecommendationsAPI[&quot;Recommendations API\nGET /api/recommendations/networking\nGET /api/recommendations/jobs&quot;]
+            SavedItemsAPI[&quot;Saved Items API\nGET /api/saved-items\nPOST /api/saved-items\nDELETE /api/saved-items/:id&quot;]
+            CareerGoalsAPI[&quot;Career Goals API\nGET /api/career-goals\nPOST /api/career-goals&quot;]
+        end
+        subgraph Frontend[&quot;Frontend (Vite Dev Server)&quot;]
+            ViteDevServer[&quot;Vite Middleware\nserver/vite.ts&quot;]
+            ReactApp[&quot;React Application\nclient/src/&quot;]
+            TanStackQuery[&quot;TanStack Query\nState &amp; Caching&quot;]
+            localStorage[&quot;localStorage\nclient/src/lib/storage.ts&quot;]
+        end
+        Storage[&quot;MemStorage\nserver/storage.ts\n(In-Memory)&quot;]
+    end
+
+    User &lt;--&gt;|HTTP/HTML/JSON| Express
+    Express --&gt;|multipart/form-data| ProfileAPI
+    Express --&gt;|JSON REST API| User
+    ReactApp --&gt;|useQuery/useMutation| TanStackQuery
+    TanStackQuery --&gt;|fetch()| API
+    API --&gt;|Read/Write| Storage
+    ReactApp --&gt;|setItem/getItem| localStorage
+
+    style User fill:#e1f5fe,stroke:#0277bd
+    style Express fill:#e8f5e9,stroke:#2e7d32
+    style Storage fill:#fff3e0,stroke:#ef6c00
+    style localStorage fill:#fff3e0,stroke:#ef6c00</div>
+<h2>Major Runtime Components</h2>
+<h3>1. Frontend Application</h3>
+<ul>
+<li><strong>Technology:</strong> React 18, TypeScript, Vite, Tailwind CSS, Radix UI (shadcn/ui)  </li>
+<li><strong>Location:</strong> <code>client/src/</code>  </li>
+<li><strong>Entry Point:</strong> <code>client/src/main.tsx</code> → <code>client/src/App.tsx</code>  </li>
+<li><strong>Responsibility:</strong> Renders the user interface, manages local UI state, and communicates with the backend REST API. The frontend is the sole user‑facing component of the application.  </li>
+<li><strong>Key evidence:</strong>  </li>
+<li><code>package.json</code> declares React 18 (<code>&quot;react&quot;: &quot;^18.3.1&quot;</code>), Vite (<code>&quot;vite&quot;: &quot;^5.4.14&quot;</code>), Tailwind CSS (<code>&quot;tailwindcss&quot;: &quot;^3.4.14&quot;</code>).  </li>
+<li><code>client/src/main.tsx</code> mounts the React application to the <code>#root</code> DOM element.  </li>
+<li><code>client/src/App.tsx</code> wraps the application in <code>QueryClientProvider</code> from <code>@tanstack/react-query</code>.  </li>
+<li><code>vite.config.ts</code> specifies <code>root: path.resolve(__dirname, &quot;client&quot;)</code> and <code>build.outDir: &quot;dist/public&quot;</code>.  </li>
+<li>UI components are sourced from <code>@radix-ui/react-*</code> packages.  </li>
+<li><strong>Runtime context:</strong>  </li>
+<li><strong>Development:</strong> Vite dev server runs in middleware mode within the Express process (<code>server/vite.ts</code>, <code>setupVite()</code>). Vite intercepts requests and serves HMR‑enabled assets during development.  </li>
+<li><strong>Production:</strong> Express serves pre‑built static assets from <code>dist/public</code> via <code>serveStatic()</code>.  </li>
+<li><strong>Principal inputs:</strong> API responses, file uploads (PDF), user interactions.  </li>
+<li><strong>Principal outputs:</strong> User interface, API requests.</li>
+</ul>
+<h3>2. API Server</h3>
+<ul>
+<li><strong>Technology:</strong> Node.js, Express.js, TypeScript  </li>
+<li><strong>Location:</strong> <code>server/</code>  </li>
+<li><strong>Entry Point:</strong> <code>server/index.ts</code>  </li>
+<li><strong>Responsibility:</strong> Serves the REST API for profile management, interests, recommendations, saved items, and career goals. Also serves the compiled frontend in production and the Vite dev server in development.  </li>
+<li><strong>Key evidence:</strong>  </li>
+<li><code>server/index.ts</code> creates an Express application, registers routes, and listens on port 5000.  </li>
+<li><code>server/routes.ts</code> defines all API endpoints using Express router patterns.  </li>
+<li><code>server/vite.ts</code> provides <code>setupVite()</code> for development and <code>serveStatic()</code> for production.  </li>
+<li>The server uses JSON body parsing (<code>express.json()</code>) and URL‑encoded parsing (<code>express.urlencoded()</code>).  </li>
+<li><strong>Runtime context:</strong> Single Node.js process. Both the API and frontend are served on the same port (5000).  </li>
+<li><strong>Principal inputs:</strong> HTTP requests, multipart form data (PDF uploads).  </li>
+<li><strong>Principal outputs:</strong> JSON API responses, static files (production).</li>
+</ul>
+<h3>3. Data Persistence Layer</h3>
+<ul>
+<li><strong>Technology:</strong> In‑memory storage (<code>MemStorage</code>), optional PostgreSQL via Drizzle ORM  </li>
+<li><strong>Location:</strong> <code>server/storage.ts</code>  </li>
+</ul>
+<table><tbody>
+<tr><td>Store</td><td>Implementation</td><td>Location</td><td>Entity</td></tr>
+<tr><td>User storage</td><td><code>Map&lt;number, User&gt;</code></td><td><code>MemStorage.users</code></td><td>User credentials</td></tr>
+<tr><td>Profile storage</td><td><code>Map&lt;number, Profile&gt;</code></td><td><code>MemStorage.profiles</code></td><td>LinkedIn profile data</td></tr>
+<tr><td>Interests storage</td><td><code>Map&lt;number, Interest&gt;</code></td><td><code>MemStorage.interestsList</code></td><td>User interests and skills</td></tr>
+<tr><td>Saved items storage</td><td><code>Map&lt;number, SavedItem&gt;</code></td><td><code>MemStorage.savedItemsList</code></td><td>Bookmarked items</td></tr>
+<tr><td>Career goals storage</td><td><code>Map&lt;number, CareerGoal&gt;</code></td><td><code>MemStorage.careerGoalsList</code></td><td>Career objectives</td></tr>
+<tr><td>Client‑side UI state</td><td>Browser <code>localStorage</code></td><td><code>client/src/lib/storage.ts</code></td><td>Theme, saved items (local)</td></tr>
+</tbody></table>
+<ul>
+<li><strong>Active storage (verified):</strong> <code>MemStorage</code> class using JavaScript <code>Map</code> objects. This is the actively used persistence layer.  </li>
+<li><strong>Defined but inactive:</strong> Drizzle ORM schema (<code>shared/schema.ts</code>) with PostgreSQL configuration (<code>drizzle.config.ts</code>) referencing <code>DATABASE_URL</code>. No code in <code>server/storage.ts</code> initializes a database connection or invokes Drizzle ORM methods.  </li>
+<li><strong>Key evidence:</strong>  </li>
+<li><code>server/storage.ts</code> exports <code>const storage = new MemStorage()</code> — the singleton instance used by all route handlers.  </li>
+<li><code>MemStorage</code> is a full in‑memory implementation using <code>Map&lt;number, T&gt;</code> for each entity (users, profiles, interests, savedItems, careerGoals).  </li>
+<li><code>shared/schema.ts</code> defines <code>pgTable</code> schemas using Drizzle ORM, but these are only used for type inference (<code>$inferSelect</code>, <code>$inferInsert</code>).  </li>
+<li><code>drizzle.config.ts</code> requires <code>DATABASE_URL</code> but this configuration is used exclusively for the <code>db:push</code> npm script (schema migration tool), not runtime data access.  </li>
+<li><strong>Persistence classification:</strong> Data stored in <code>MemStorage</code> persists only for the lifetime of the Node.js process. Data stored in the browser’s <code>localStorage</code> persists across browser sessions but is local to each user’s browser and is not shared with the server.</li>
+</ul>
+<h3>4. Client‑Side State Management</h3>
+<ul>
+<li><strong>Technology:</strong> TanStack Query (React Query), <code>localStorage</code>  </li>
+<li><strong>Location:</strong> <code>client/src/lib/queryClient.ts</code>, <code>client/src/lib/storage.ts</code>  </li>
+<li><strong>Responsibility:</strong> Manages server state (API data fetching/caching) and local client preferences.  </li>
+<li><strong>Key evidence:</strong>  </li>
+<li><code>queryClient</code> in <code>client/src/lib/queryClient.ts</code> is configured with <code>QueryClientProvider</code> wrapping the entire application (<code>App.tsx</code>).  </li>
+<li>Custom hooks (<code>useLinkedInProfile.ts</code>, <code>useInterests.ts</code>, <code>useRecommendations.ts</code>, <code>useSavedItems.ts</code>, <code>useCareerGoals.ts</code>) abstract API access through TanStack Query.  </li>
+<li><code>client/src/lib/storage.ts</code> provides <code>localStorage</code> helpers for UI state (theme preference, locally saved items).  </li>
+<li><strong>Configuration:</strong> TanStack Query is configured with <code>staleTime: Infinity</code> for profile queries, <code>refetchOnWindowFocus: false</code>, and <code>retry: false</code>.</li>
+</ul>
+<h3>5. Shared Schema Layer</h3>
+<ul>
+<li><strong>Technology:</strong> TypeScript, Drizzle ORM schema definitions, Zod validation schemas  </li>
+<li><strong>Location:</strong> <code>shared/schema.ts</code>  </li>
+<li><strong>Responsibility:</strong> Defines entity types and database schemas shared between the server and (potentially) the client through path aliases.  </li>
+<li><strong>Key evidence:</strong>  </li>
+<li><code>tsconfig.json</code> defines path aliases: <code>&quot;@shared/<em>&quot;: [&quot;./shared/</em>&quot;]</code>.  </li>
+<li><code>vite.config.ts</code> defines <code>alias: { &quot;@shared&quot;: path.resolve(__dirname, &quot;shared&quot;) }</code>.  </li>
+<li><code>server/storage.ts</code> imports types from <code>@shared/schema</code>.  </li>
+<li>Schema includes: <code>users</code>, <code>profiles</code>, <code>interests</code>, <code>savedItems</code>, <code>careerGoals</code>.</li>
+</ul>
+<h2>Communication Flows</h2>
+<h3>User Interaction Flow</h3>
+<p>1. <strong>Browser request</strong> → Express server on port 5000.  </p>
+<p>2. <strong>Development:</strong> Vite middleware intercepts and serves React assets with HMR.  </p>
+<p>3. <strong>Production:</strong> Express.static serves pre‑built files from <code>dist/public</code>.  </p>
+<p>4. <strong>React app loads</strong> → TanStack Query fetches initial data from API endpoints.  </p>
+<p>5. <strong>User interacts</strong> → React components trigger TanStack Query mutations or <code>localStorage</code> updates.  </p>
+<p>6. <strong>API calls</strong> → <code>fetch()</code> requests to <code>/api/*</code> endpoints.  </p>
+<p>7. <strong>Server processes</strong> → Express routes handle requests, interact with <code>MemStorage</code>.  </p>
+<p>8. <strong>Response</strong> → JSON returned to client, TanStack Query updates cache.</p>
+<h3>Profile Upload Flow</h3>
+<p>1. User selects PDF file in <code>FileUploader</code> component (<code>client/src/components/ui/file-uploader.tsx</code>).  </p>
+<p>2. <code>useLinkedInProfile</code> hook calls <code>parsePDF()</code> from <code>client/src/lib/pdf-parser.ts</code>.  </p>
+<p>3. <code>parsePDF()</code> sends <code>multipart/form-data</code> POST to <code>/api/profile/upload</code>.  </p>
+<p>4. Server receives file via <code>multer</code> middleware (5 MB limit, PDF‑only filter).  </p>
+<p>5. <code>extractTextFromPdf()</code> in <code>server/routes.ts</code> returns simulated LinkedIn profile text.  </p>
+<p>6. <code>extractProfileFromText()</code> parses name, headline, skills, education, experience using regex.  </p>
+<p>7. Profile stored/updated via <code>storage.createProfile()</code> or <code>storage.updateProfile()</code>.  </p>
+<p>8. Server returns JSON profile data to client.  </p>
+<p>9. TanStack Query cache updated with new profile data.</p>
+<h3>Recommendation Generation Flow</h3>
+<p>1. User navigates to Networking or Jobs tab.  </p>
+<p>2. <code>useNetworkingRecommendations</code> or <code>useJobRecommendations</code> hook fires.  </p>
+<p>3. GET request to <code>/api/recommendations/networking</code> or <code>/api/recommendations/jobs</code>.  </p>
+<p>4. Server generates mock data using <code>generatePeopleToFollow()</code>, <code>generateJobOpenings()</code>, etc.  </p>
+<p>5. All recommendation generators return hardcoded mock data — no real ML, AI, or profile‑based filtering.  </p>
+<p>6. Response cached by TanStack Query with 5‑minute <code>staleTime</code>.</p>
+<h2>External Systems</h2>
+<h3>Verified External Dependencies</h3>
+<table><tbody>
+<tr><td>External System</td><td>Purpose</td><td>Evidence</td></tr>
+<tr><td><code>randomuser.me/api/portraits/</code></td><td>Avatar images for mock recommendation profiles</td><td><code>server/routes.ts</code> lines 29, 35, 41, 47, 54, 71, 77, 83, 89, 95, 114, 124, 134, 144, 154</td></tr>
+<tr><td><code>logo.clearbit.com/</code></td><td>Company logos in job recommendations</td><td><code>server/routes.ts</code> lines 172, 183, 194, 205, 216</td></tr>
+<tr><td><code>fonts.googleapis.com</code></td><td>Inter font for typography</td><td><code>client/index.html</code> line 9</td></tr>
+</tbody></table>
+<h3>Unverified / Declared But Inactive</h3>
+<table><tbody>
+<tr><td>Declared System</td><td>Stated Purpose</td><td>Evidence of Activation</td></tr>
+<tr><td>PostgreSQL</td><td>Persistent data storage</td><td><code>drizzle.config.ts</code> requires <code>DATABASE_URL</code>, but no runtime DB initialization found in <code>server/storage.ts</code></td></tr>
+<tr><td><code>@neondatabase/serverless</code></td><td>Neon serverless PostgreSQL driver</td><td>Present in <code>package.json</code> dependencies, but no imports or usage found in server code</td></tr>
+<tr><td><code>passport</code> / <code>passport-local</code></td><td>User authentication</td><td>Present in <code>package.json</code> dependencies, but no authentication routes or middleware found in <code>server/routes.ts</code></td></tr>
+<tr><td><code>express-session</code> / <code>memorystore</code></td><td>Session management</td><td>Present in <code>package.json</code> dependencies, but no <code>app.use(session())</code> initialization in <code>server/index.ts</code></td></tr>
+<tr><td>AI/ML services</td><td>Career recommendations</td><td>Declared in README (&quot;AI‑powered&quot;), but all recommendation endpoints return hardcoded mock data with no AI integration</td></tr>
+</tbody></table>
+<h2>Environment Configuration</h2>
+<table><tbody>
+<tr><td>Variable</td><td>Required</td><td>Usage</td><td>Evidence</td></tr>
+<tr><td><code>DATABASE_URL</code></td><td>Required for <code>db:push</code> script only</td><td>Drizzle Kit schema migration</td><td><code>drizzle.config.ts</code> throws if missing, but not checked at runtime by <code>server/index.ts</code></td></tr>
+<tr><td><code>SESSION_SECRET</code></td><td>Optional</td><td>Session middleware configuration</td><td>Referenced in README but not used in server code</td></tr>
+<tr><td><code>NODE_ENV</code></td><td>Optional</td><td>Vite plugin activation, production build detection</td><td><code>vite.config.ts</code> and <code>server/index.ts</code> check this value</td></tr>
+<tr><td><code>REPL_ID</code></td><td>Optional</td><td>Replit‑specific Vite plugin activation</td><td><code>vite.config.ts</code> checks this for <code>@replit/vite-plugin-cartographer</code></td></tr>
+</tbody></table>
+<h2>Deployment Boundaries</h2>
+<ul>
+<li><strong>Verified deployment targets:</strong>  </li>
+<li><strong>Vercel:</strong> Frontend/static assets (referenced in README badge and <code>vercel.app</code> domain).  </li>
+<li><strong>Replit:</strong> Full stack (referenced in README badge, evidenced by <code>REPL_ID</code> checks in <code>vite.config.ts</code>).  </li>
+</ul>
+<ul>
+<li><strong>Runtime boundary:</strong> Single Node.js process. The Express server handles both API and static file serving. No containerization (no <code>Dockerfile</code> or <code>docker-compose.yml</code> present).  </li>
+</ul>
+<ul>
+<li><strong>Build boundary:</strong>  </li>
+<li>Frontend build: <code>vite build</code> outputs to <code>dist/public</code>.  </li>
+<li>Server build: <code>esbuild server/index.ts</code> bundles the Node.js server to <code>dist/</code>.  </li>
+<li>Production start: <code>NODE_ENV=production node dist/index.js</code>.</li>
+</ul>
+<h2>Technology Stack Summary</h2>
+<table><tbody>
+<tr><td>Layer</td><td>Technology</td><td>Evidence</td></tr>
+<tr><td>UI Framework</td><td>React 18</td><td><code>package.json</code>: <code>&quot;react&quot;: &quot;^18.3.1&quot;</code></td></tr>
+<tr><td>Language</td><td>TypeScript 5.6</td><td><code>package.json</code>: <code>&quot;typescript&quot;: &quot;5.6.3&quot;</code></td></tr>
+<tr><td>Build Tool</td><td>Vite 5</td><td><code>package.json</code>: <code>&quot;vite&quot;: &quot;^5.4.14&quot;</code></td></tr>
+<tr><td>Styling</td><td>Tailwind CSS 3</td><td><code>package.json</code>: <code>&quot;tailwindcss&quot;: &quot;^3.4.14&quot;</code></td></tr>
+<tr><td>UI Components</td><td>Radix UI + shadcn/ui</td><td><code>package.json</code>: <code>@radix-ui/react-*</code> packages</td></tr>
+<tr><td>HTTP Client</td><td>TanStack Query 5</td><td><code>package.json</code>: <code>&quot;@tanstack/react-query&quot;: &quot;^5.60.5&quot;</code></td></tr>
+<tr><td>Routing</td><td>Wouter</td><td><code>package.json</code>: <code>&quot;wouter&quot;: &quot;^3.3.5&quot;</code> (present but not actively used in source)</td></tr>
+<tr><td>Server Framework</td><td>Express 4</td><td><code>package.json</code>: <code>&quot;express&quot;: &quot;^4.21.2&quot;</code></td></tr>
+<tr><td>Server Runtime</td><td>Node.js</td><td><code>package.json</code> scripts use <code>node</code> and <code>tsx</code></td></tr>
+<tr><td>ORM</td><td>Drizzle ORM</td><td><code>package.json</code>: <code>&quot;drizzle-orm&quot;: &quot;^0.39.1&quot;</code>, <code>drizzle.config.ts</code></td></tr>
+<tr><td>Validation</td><td>Zod</td><td><code>package.json</code>: <code>&quot;zod&quot;: &quot;^3.23.8&quot;</code>, used in schema generation</td></tr>
+<tr><td>File Upload</td><td>Multer</td><td><code>package.json</code>: <code>&quot;multer&quot;: &quot;^1.4.5-lts.2&quot;</code>, <code>server/routes.ts</code></td></tr>
+<tr><td>PDF Processing</td><td>pdf‑parse</td><td><code>package.json</code>: <code>&quot;pdf-parse&quot;: &quot;^1.1.1&quot;</code> (present but not imported/used in <code>routes.ts</code>)</td></tr>
+<tr><td>Database</td><td>PostgreSQL (configured, inactive)</td><td><code>drizzle.config.ts</code> dialect <code>&quot;postgresql&quot;</code></td></tr>
+</tbody></table>
+<h2>Architecture Classification</h2>
+<table><tbody>
+<tr><td>Element</td><td>Classification</td><td>Evidence</td></tr>
+<tr><td>Express server as sole backend</td><td><strong>Verified</strong></td><td><code>server/index.ts</code> is the only server entry point</td></tr>
+<tr><td>React SPA as sole frontend</td><td><strong>Verified</strong></td><td><code>client/src/App.tsx</code> is the only frontend entry point</td></tr>
+<tr><td>Single‑port architecture</td><td><strong>Verified</strong></td><td><code>server/index.ts</code> listens on port 5000 for both API and static files</td></tr>
+<tr><td>MemStorage as active persistence</td><td><strong>Verified</strong></td><td><code>server/storage.ts</code> exports <code>new MemStorage()</code> used by all routes</td></tr>
+<tr><td>PostgreSQL as active persistence</td><td><strong>Unverified</strong></td><td>Schema exists but no DB connection initialized at runtime</td></tr>
+<tr><td>Neon serverless database</td><td><strong>Unverified</strong></td><td>Package declared but no imports found</td></tr>
+<tr><td>Passport authentication</td><td><strong>Unverified</strong></td><td>Package declared but no auth routes or middleware found</td></tr>
+<tr><td>Express session management</td><td><strong>Unverified</strong></td><td>Package declared but no <code>session()</code> middleware initialized</td></tr>
+<tr><td>AI/ML recommendation engine</td><td><strong>Unverified</strong></td><td>All recommendation endpoints return hardcoded mock data</td></tr>
+<tr><td>PDF parsing from uploaded file</td><td><strong>Unverified</strong></td><td><code>pdf-parse</code> package present; <code>extractTextFromPdf()</code> returns mock text, not actual PDF content</td></tr>
+<tr><td>Vercel deployment</td><td><strong>Verified (documentation)</strong></td><td>README badge links to <code>career-pro-v2.vercel.app</code></td></tr>
+<tr><td>Replit deployment</td><td><strong>Verified (documentation + config)</strong></td><td>README badge, <code>REPL_ID</code> check in <code>vite.config.ts</code></td></tr>
+<tr><td>Docker containerization</td><td><strong>Not present</strong></td><td>No Dockerfile or docker‑compose files found</td></tr>
+</tbody></table>
+<h2>Key Architectural Observations</h2>
+<ul>
+<li><strong>In‑memory only persistence:</strong> All user data (profiles, interests, saved items, career goals) stored in <code>MemStorage</code> is lost when the Node.js process restarts. No database connection is established or queried at runtime despite Drizzle ORM and PostgreSQL configuration being present.  </li>
+</ul>
+<ul>
+<li><strong>Mock recommendation data:</strong> The networking and job recommendation endpoints (<code>/api/recommendations/networking</code>, <code>/api/recommendations/jobs</code>) return hardcoded mock data. The uploaded profile has no influence on the recommendations returned, contradicting the README’s claim of “AI‑powered” recommendations.  </li>
+</ul>
+<ul>
+<li><strong>Simulated PDF processing:</strong> The <code>extractTextFromPdf()</code> function in <code>server/routes.ts</code> returns a hardcoded mock LinkedIn profile regardless of the actual uploaded PDF content. The <code>pdf-parse</code> package is listed as a dependency but is not imported or used anywhere in the codebase.  </li>
+</ul>
+<ul>
+<li><strong>Single‑user assumption:</strong> All API endpoints hardcode <code>userId = 1</code>, treating every request as belonging to the same demo user. No multi‑user isolation or authentication mechanism exists.  </li>
+</ul>
+<ul>
+<li><strong>Dual <code>localStorage</code> usage:</strong> The application stores data in two separate <code>localStorage</code> namespaces — one managed by <code>client/src/lib/storage.ts</code> (client‑side saved items, theme preference) and one by <code>server/storage.ts</code> (server‑side <code>MemStorage</code> with a fixed demo user). These represent two independent data stores with no synchronization.  </li>
+</ul>
+<ul>
+<li><strong>Decentralized state management:</strong> Profile data flows through the server <code>MemStorage</code> (server‑side), while UI preferences and local saved items flow through the browser’s <code>localStorage</code> (client‑side). The theme preference is also stored in <code>localStorage</code> via the theme provider.</li>
+</ul>
+</main>
+</body>
+</html>

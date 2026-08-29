@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>requirements</title>
+
+<style>
+body {
+    margin: 0;
+    background: #f6f7f9;
+    color: #1f2937;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 28px;
+    background: #fff;
+    min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    line-height: 1.25;
+    margin-top: 1.5em;
+}
+
+p, li {
+    line-height: 1.6;
+}
+
+table {
+    border-collapse: collapse;
+    margin: 18px 0;
+    width: 100%;
+}
+
+td {
+    border: 1px solid #d1d5db;
+    padding: 8px;
+    text-align: left;
+    vertical-align: top;
+}
+
+pre {
+    background: #111827;
+    color: #f9fafb;
+    overflow: auto;
+    padding: 16px;
+    border-radius: 8px;
+}
+
+code {
+    background: #eef0f3;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+pre code {
+    background: transparent;
+    padding: 0;
+}
+
+a {
+    color: #2563eb;
+}
+
+.mermaid {
+    overflow-x: auto;
+    margin: 24px 0;
+    padding: 12px;
+}
+</style>
+
+<script type="module">
+import mermaid from
+    "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+mermaid.initialize({
+    startOnLoad: true,
+    securityLevel: "loose",
+    theme: "default",
+});
+</script>
+
+</head>
+
+<body>
+<main>
+<h1>Requirements Analysis for NetworkPro (CareerPro-v2)</h1>
+<h2>Overview</h2>
+<p>NetworkPro is a career and networking application that analyzes LinkedIn profile data to provide personalized AI‑powered recommendations for career growth, networking, and skill development.</p>
+<h2>Functional Requirements</h2>
+<h3>Profile Management</h3>
+<ul>
+<li>The system must allow users to upload LinkedIn profile PDF files for analysis  </li>
+<li>The system must extract professional data from uploaded PDFs including: name, headline, location, industry, experience, education, skills, and certifications  </li>
+<li>The system must store user profiles with all extracted professional data  </li>
+<li>The system must allow users to manually edit their profile data  </li>
+<li>The system must retrieve and display user profile information  </li>
+</ul>
+<h3>Recommendation System</h3>
+<ul>
+<li>The system must generate networking recommendations including:  </li>
+<li>People to follow based on profile analysis  </li>
+<li>People to connect with based on profile analysis  </li>
+<li>Trending posts relevant to user&#x27;s professional interests  </li>
+<li>The system must generate job recommendations including:  </li>
+<li>Job openings matching user profile and goals  </li>
+<li>Recommended courses for skill development  </li>
+<li>Skills to develop based on career goals and market trends  </li>
+<li>The system must refresh recommendations when user interests or career goals are updated  </li>
+</ul>
+<h3>Interest and Goal Management</h3>
+<ul>
+<li>The system must allow users to select career interest topics from suggested lists  </li>
+<li>The system must allow users to add custom career interest topics  </li>
+<li>The system must allow users to select skills they want to develop or showcase  </li>
+<li>The system must allow users to set career goals including desired role, industry, location, and salary range  </li>
+<li>The system must save and retrieve user interests and career goals  </li>
+</ul>
+<h3>Bookmarking Functionality</h3>
+<ul>
+<li>The system must allow users to save/bookmark items of various types (people, jobs, courses, posts, skills)  </li>
+<li>The system must allow users to remove saved items  </li>
+<li>The system must retrieve and display saved items by type  </li>
+<li>The system must persist saved items across user sessions  </li>
+</ul>
+<h3>User Interface</h3>
+<ul>
+<li>The system must provide tabbed navigation between four main sections: Home, Interests, Networking, and Jobs  </li>
+<li>The system must support light and dark mode themes with user preference persistence  </li>
+<li>The system must display loading states during asynchronous operations  </li>
+<li>The system must provide user feedback through toast notifications for success and error conditions  </li>
+<li>The system must handle empty states with appropriate placeholder content and guidance  </li>
+</ul>
+<h2>Non-Functional Requirements</h2>
+<h3>Performance and Scalability</h3>
+<ul>
+<li>The system must process file uploads up to 5 MB in size  </li>
+<li>The system must cache API responses to minimize unnecessary network requests  </li>
+<li>The system must provide responsive design that adapts to different screen sizes  </li>
+</ul>
+<h3>Technical Architecture</h3>
+<ul>
+<li>The system must use React 18+ for the frontend user interface  </li>
+<li>The system must use Express.js/Node.js for the backend API server  </li>
+<li>The system must use PostgreSQL as the primary database  </li>
+<li>The system must use TypeScript for type safety across frontend and backend  </li>
+<li>The system must use Drizzle ORM for database interactions  </li>
+<li>The system must use React Query for data fetching and state management  </li>
+<li>The system must use shadcn/ui component library with Radix UI primitives  </li>
+</ul>
+<h3>Reliability and Error Handling</h3>
+<ul>
+<li>The system must handle file upload errors gracefully (invalid file types, oversized files)  </li>
+<li>The system must handle API errors with user‑friendly error messages  </li>
+<li>The system must prevent stack traces from being exposed to end users  </li>
+<li>The system must maintain data consistency between client and server states  </li>
+</ul>
+<h3>Security</h3>
+<ul>
+<li>The system must authenticate users via username/password credentials  </li>
+<li>The system must manage user sessions securely  </li>
+<li>The system must validate file uploads for type (PDF only) and size limits  </li>
+<li>The system must use environment variables for sensitive configuration  </li>
+<li>The system must transmit credentials with API requests  </li>
+</ul>
+<h2>Business and Domain Rules</h2>
+<h3>Data Validation</h3>
+<ul>
+<li>Only PDF files are accepted for LinkedIn profile uploads  </li>
+<li>Uploaded files must not exceed 5 MB in size  </li>
+<li>User data must be associated with a valid user ID  </li>
+<li>Profile data must include a name field for processing  </li>
+</ul>
+<h3>Workflow Dependencies</h3>
+<ul>
+<li>Interest recommendations are generated based on analyzed profile data  </li>
+<li>Networking and job recommendations are generated based on profile and selected interests  </li>
+<li>Career goals influence the type of job and skill recommendations provided  </li>
+<li>Saved items persist until explicitly removed by the user  </li>
+<li>Theme preferences persist via browser localStorage  </li>
+</ul>
+<h3>Data Processing</h3>
+<ul>
+<li>Profile analysis extracts structured data from unstructured PDF text  </li>
+<li>Missing or incomplete profile data is supplemented with demo data for usability  </li>
+<li>Recommendation data is simulated/mocked for demonstration purposes  </li>
+<li>All dates and timestamps are stored in UTC format  </li>
+</ul>
+<h2>Interface Requirements</h2>
+<h3>API Endpoints</h3>
+<ul>
+<li><code>POST /api/profile/upload</code> – Accepts multipart/form-data with PDF file, returns extracted profile data  </li>
+<li><code>GET /api/profile</code> – Returns current user&#x27;s profile data  </li>
+<li><code>PUT /api/profile</code> – Accepts partial profile updates, returns updated profile  </li>
+<li><code>GET /api/interests/suggestions</code> – Returns interest topic and skill suggestions based on profile  </li>
+<li><code>POST /api/interests</code> – Accepts topics and skills arrays, saves user interests  </li>
+<li><code>GET /api/interests</code> – Returns current user&#x27;s saved interests  </li>
+<li><code>GET /api/recommendations/networking</code> – Returns networking recommendations (people to follow, connect with, trending posts)  </li>
+<li><code>GET /api/recommendations/jobs</code> – Returns job recommendations (openings, courses, skills to develop)  </li>
+<li><code>POST /api/career-goals</code> – Accepts career goals object, saves or updates user goals  </li>
+<li><code>GET /api/career-goals</code> – Returns current user&#x27;s career goals  </li>
+<li><code>POST /api/saved-items</code> – Accepts item to save, returns saved item with ID  </li>
+<li><code>DELETE /api/saved-items/:id</code> – Removes saved item by ID, returns success status  </li>
+<li><code>GET /api/saved-items</code> – Returns user&#x27;s saved items, optionally filtered by type  </li>
+</ul>
+<h3>Data Formats</h3>
+<ul>
+<li>All API communication uses JSON format  </li>
+<li>File uploads use multipart/form-data encoding  </li>
+<li>Dates are transmitted as ISO 8601 strings  </li>
+<li>Enums and fixed values are represented as strings  </li>
+<li>Arrays are used for lists of items (experience, education, skills, etc.)  </li>
+</ul>
+<h2>Data Requirements</h2>
+<h3>User Profile Entity</h3>
+<ul>
+<li><strong>Required fields:</strong> <code>userId</code>, <code>name</code>  </li>
+<li><strong>Optional fields:</strong> <code>headline</code>, <code>location</code>, <code>industry</code>, <code>currentJobTitle</code>, <code>currentCompany</code>, <code>summary</code>, <code>avatarUrl</code>  </li>
+<li><strong>Complex fields:</strong> <code>experience</code> (JSONB array), <code>education</code> (JSONB array), <code>skills</code> (JSONB array), <code>certifications</code> (JSONB array)  </li>
+<li><strong>System fields:</strong> <code>id</code> (primary key), <code>createdAt</code> (timestamp)  </li>
+</ul>
+<h3>User Interests Entity</h3>
+<ul>
+<li><strong>Required fields:</strong> <code>userId</code>  </li>
+<li><strong>Complex fields:</strong> <code>topics</code> (JSONB array of strings), <code>skills</code> (JSONB array of strings)  </li>
+<li><strong>System fields:</strong> <code>id</code> (primary key), <code>createdAt</code> (timestamp)  </li>
+</ul>
+<h3>Career Goals Entity</h3>
+<ul>
+<li><strong>Required fields:</strong> <code>userId</code>  </li>
+<li><strong>Optional fields:</strong> <code>desiredRole</code>, <code>industry</code>, <code>location</code>, <code>salaryRange</code>  </li>
+<li><strong>System fields:</strong> <code>id</code> (primary key), <code>createdAt</code> (timestamp)  </li>
+</ul>
+<h3>Saved Items Entity</h3>
+<ul>
+<li><strong>Required fields:</strong> <code>userId</code>, <code>itemType</code>, <code>itemId</code>, <code>itemData</code>  </li>
+<li><strong>Constraints:</strong> <code>itemType</code> limited to <code>&#x27;person&#x27;</code>, <code>&#x27;job&#x27;</code>, <code>&#x27;course&#x27;</code>, <code>&#x27;post&#x27;</code>, or <code>&#x27;skill&#x27;</code>  </li>
+<li><strong>System fields:</strong> <code>id</code> (primary key), <code>createdAt</code> (timestamp)  </li>
+</ul>
+<h3>Users Entity (Auth)</h3>
+<ul>
+<li><strong>Required fields:</strong> <code>username</code> (unique), <code>password</code>  </li>
+<li><strong>System fields:</strong> <code>id</code> (primary key)  </li>
+</ul>
+<h2>Security Requirements</h2>
+<h3>Authentication</h3>
+<ul>
+<li>System must authenticate users via username/password  </li>
+<li>Demo credentials: <code>username=&quot;demo&quot;</code>, <code>password=&quot;password&quot;</code>  </li>
+<li>Session management via <code>express-session</code> with <code>MemoryStore</code>  </li>
+<li>Authenticated sessions required for all API endpoints  </li>
+</ul>
+<h3>Data Protection</h3>
+<ul>
+<li>File uploads restricted to PDF MIME type (<code>application/pdf</code>)  </li>
+<li>File size limited to 5 MB maximum  </li>
+<li>Input validation on all API endpoints to prevent injection  </li>
+<li>Error messages sanitized to avoid information leakage  </li>
+<li>Environment variables used for sensitive values (<code>DATABASE_URL</code>, <code>SESSION_SECRET</code>)  </li>
+</ul>
+<h2>Operational Requirements</h2>
+<h3>Deployment</h3>
+<ul>
+<li>Application serves both API and static content on port 5000  </li>
+<li>Development mode uses Vite frontend dev server with TSX backend  </li>
+<li>Production builds frontend with Vite and bundles backend with esbuild  </li>
+<li>Environment variables required: <code>DATABASE_URL</code>, <code>SESSION_SECRET</code>  </li>
+<li>Database schema managed via Drizzle Kit migrations  </li>
+</ul>
+<h3>Monitoring and Logging</h3>
+<ul>
+<li>API request/response logging for monitoring and debugging  </li>
+<li>Error logging for troubleshooting  </li>
+<li>Client‑side React Query devtools for development inspection  </li>
+</ul>
+<h3>Maintenance</h3>
+<ul>
+<li>Component library updates via shadcn/ui  </li>
+<li>Type safety maintained through TypeScript  </li>
+<li>Database evolves via migration scripts  </li>
+</ul>
+<h2>Assumptions and Limitations</h2>
+<h3>Current Implementation Notes</h3>
+<ul>
+<li>User ID is hardcoded to 1 for all operations (single‑user demo)  </li>
+<li>Recommendation data is simulated/mocked rather than AI‑generated  </li>
+<li>PDF text extraction is simulated rather than using actual PDF parsing  </li>
+<li>Authentication uses a single demo user rather than multi‑user system  </li>
+<li>Storage falls back to in‑memory when database unavailable  </li>
+</ul>
+<h3>Future Considerations</h3>
+<ul>
+<li>Multi‑user support with proper user isolation  </li>
+<li>Real AI‑powered recommendation engine  </li>
+<li>Actual PDF text extraction using libraries like <code>pdf.js</code>  </li>
+<li>Enhanced security with role‑based access control  </li>
+<li>Real‑time updates via WebSocket connections  </li>
+<li>Extended file format support beyond PDF  </li>
+<li>Integration with actual LinkedIn API for data extraction</li>
+</ul>
+</main>
+</body>
+</html>

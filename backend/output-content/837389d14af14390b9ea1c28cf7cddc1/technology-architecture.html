@@ -1,0 +1,316 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>technology-architecture</title>
+
+<style>
+body {
+    margin: 0;
+    background: #f6f7f9;
+    color: #1f2937;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 28px;
+    background: #fff;
+    min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    line-height: 1.25;
+    margin-top: 1.5em;
+}
+
+p, li {
+    line-height: 1.6;
+}
+
+table {
+    border-collapse: collapse;
+    margin: 18px 0;
+    width: 100%;
+}
+
+td {
+    border: 1px solid #d1d5db;
+    padding: 8px;
+    text-align: left;
+    vertical-align: top;
+}
+
+pre {
+    background: #111827;
+    color: #f9fafb;
+    overflow: auto;
+    padding: 16px;
+    border-radius: 8px;
+}
+
+code {
+    background: #eef0f3;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+pre code {
+    background: transparent;
+    padding: 0;
+}
+
+a {
+    color: #2563eb;
+}
+
+.mermaid {
+    overflow-x: auto;
+    margin: 24px 0;
+    padding: 12px;
+}
+</style>
+
+<script type="module">
+import mermaid from
+    "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+mermaid.initialize({
+    startOnLoad: true,
+    securityLevel: "loose",
+    theme: "default",
+});
+</script>
+
+</head>
+
+<body>
+<main>
+<h1>Technology Architecture</h1>
+<h2>Architecture Overview</h2>
+<p>Next.js Commerce is a high-performance server-rendered ecommerce application built around a Shopify storefront integration. The architecture consists of a modern Next.js frontend with React Server Components and a client-side component system that communicates with Shopify&#x27;s GraphQL API through a custom integration layer.</p>
+<h2>Architecture Diagram</h2>
+<div class="mermaid">flowchart TB
+    %% Entry Points
+    U[End Users] --&gt; F[Next.js Frontend]
+    U --&gt; A[Direct Shopify Storefront]
+    
+    %% Frontend Components
+    F --&gt;|HTTP/JSON| FE[Next.js Application Server]
+    F --&gt;|WebSocket| CartWS[WebSocket Connection]
+    
+    %% Frontend Layer
+    FE --&gt;|Server Actions| RouteComponents[&quot;App Router Routes&quot;]
+    FE --&gt;|Component Library| UI[React Component Library]
+    FE --&gt;|Static Assets| Assets[&quot;Images &amp; Static Files&quot;]
+    
+    %% Backend/API Layer
+    RouteComponents --&gt;|Server Actions &amp; API Routes| ShopAPI[Shopify Integration Layer]
+    FE --&gt;|Server Components| ShopAPI
+    
+    %% Shopify Integration
+    ShopAPI --&gt;|GraphQL REST API| Shopify[Shopify Storefront API]
+    CartWS --&gt;|GraphQL Subscriptions| Shopify[&quot;Cart Operations&quot;]
+    
+    %% Data Storage
+    Shopify --&gt;|Database Access| ShopifyDB[Shopify Database]
+    
+    %% Supporting Infrastructure
+    FE --&gt;|Caching Layer| NextCache[Next.js Caching]
+    FE --&gt;|Environment| EnvVars[Environment Variables]
+    FE --&gt;|Build Tools| BuildTools[&quot;Build &amp; CI/CD&quot;]
+    
+    %% External Services
+    Assets --&gt;|CDN| CDN[&quot;Image CDN&quot;]
+    ShopAPI --&gt;|Authentication| Auth[&quot;Shopify Auth Token&quot;]
+    BuildTools --&gt;|Deployment| Vercel[&quot;Vercel Platform&quot;]
+    
+    %% Key Relationships
+    classDef verified fill:#d4edda,stroke:#c3e6cb
+    classDef inferred fill:#fff3cd,stroke:#ffeaa7
+    classDef unverified fill:#f8d7da,stroke:#f5c6cb
+    
+    class F,FE,RouteComponents,UI,ShopAPI,Shopify,NextCache,EnvVars,Vercel verified
+    class CartWS,ShopifyDB,Assets,CDN,A user inferred
+    
+    style U fill:#e3f2fd,stroke:#bbdefb</div>
+<h2>Component Analysis</h2>
+<h3>Frontend Layer (Verified)</h3>
+<p><strong>Next.js Application Server</strong></p>
+<ul>
+<li><strong>Technology</strong>: Next.js 15.6.0 (App Router with React Server Components)</li>
+<li><strong>Responsibility</strong>: Primary web application server, server-side rendering, static generation</li>
+<li><strong>Runtime</strong>: Node.js runtime via Next.js build process</li>
+<li><strong>Evidence</strong>: <code>next.config.ts</code>, <code>package.json</code>, <code>app/layout.tsx</code>, <code>app/page.tsx</code></li>
+<li><strong>Inputs/Outputs</strong>: Receives HTTP requests, serves HTML and JSON responses</li>
+<li><strong>Dependencies</strong>: React, React DOM, Tailwind CSS, Geist font</li>
+</ul>
+<p><strong>React Component Library</strong></p>
+<ul>
+<li><strong>Technology</strong>: React 19.0.0 with TypeScript</li>
+<li><strong>Responsibility</strong>: Reusable UI components (cart, products, layout, etc.)</li>
+<li><strong>Evidence</strong>: <code>components/</code> directory with 40+ component files</li>
+<li><strong>Architecture Note</strong>: Client Components (<code>&quot;use client&quot;</code>) for interactive elements, Server Components for presentation</li>
+</ul>
+<h3>Shopify Integration Layer (Verified)</h3>
+<p><strong>Shopify API Client</strong></p>
+<ul>
+<li><strong>Technology</strong>: Custom GraphQL client implemented in <code>lib/shopify/index.ts</code></li>
+<li><strong>Responsibility</strong>: Connects frontend to Shopify Storefront API</li>
+<li><strong>Evidence</strong>: <code>shopifyFetch</code> function, environment variables (<code>SHOPIFY_STORE_DOMAIN</code>, <code>SHOPIFY_STOREFRONT_ACCESS_TOKEN</code>)</li>
+<li><strong>Communication</strong>: GraphQL REST API over HTTPS</li>
+<li><strong>Data Operations</strong>: Product catalogs, collections, carts, customer data</li>
+</ul>
+<h3>Cart Management System (Verified)</h3>
+<p><strong>Client-Side Cart Context</strong></p>
+<ul>
+<li><strong>Technology</strong>: React Context API with <code>useOptimistic</code> hooks (<code>components/cart/cart-context.tsx</code>)</li>
+<li><strong>Responsibility</strong>: Manages shopping cart state across components</li>
+<li><strong>Evidence</strong>: <code>CartProvider</code> component, <code>useCart</code> hook, cart reducer logic</li>
+<li><strong>Runtime</strong>: Client-side React application</li>
+</ul>
+<p><strong>Server-Side Cart Operations</strong></p>
+<ul>
+<li><strong>Technology</strong>: Shopify cart mutations (<code>lib/shopify/mutations/cart.ts</code>)</li>
+<li><strong>Responsibility</strong>: Persists cart data to Shopify backend</li>
+<li><strong>Evidence</strong>: <code>addToCart</code>, <code>removeFromCart</code>, <code>updateCart</code> functions</li>
+</ul>
+<h3>Data Storage (Strongly Inferred)</h3>
+<p><strong>Shopify Database</strong></p>
+<ul>
+<li><strong>Technology</strong>: Shopify&#x27;s proprietary database (PostgreSQL-based)</li>
+<li><strong>Responsibility</strong>: Primary data store for products, customers, orders, carts</li>
+<li><strong>Evidence</strong>: All data operations flow through Shopify GraphQL API</li>
+<li><strong>Access Pattern</strong>: RESTful GraphQL endpoints via Shopify frontend API</li>
+</ul>
+<h3>Infrastructure and Deployment (Verified)</h3>
+<p><strong>Build and Runtime Tools</strong></p>
+<ul>
+<li><strong>Technology</strong>: pnpm package manager, TypeScript, Tailwind CSS, PostCSS</li>
+<li><strong>Evidence</strong>: <code>package.json</code>, <code>pnpm-lock.yaml</code>, <code>next.config.ts</code></li>
+<li><strong>Build Process</strong>: <code>pnpm install</code>, <code>pnpm dev</code>, <code>pnpm build</code>, <code>pnpm start</code></li>
+</ul>
+<p><strong>Deployment Platform</strong></p>
+<ul>
+<li><strong>Technology</strong>: Vercel platform</li>
+<li><strong>Evidence</strong>: README deployment instructions, Vercel button badge, <code>baseUrl</code> configuration</li>
+<li><strong>Runtime Environment</strong>: Serverless functions, edge caching</li>
+</ul>
+<h3>External Services (Verified)</h3>
+<p><strong>Shopify Storefront API</strong></p>
+<ul>
+<li><strong>Technology</strong>: Shopify Storefront GraphQL API</li>
+<li><strong>Responsibility</strong>: Provides product catalog, customer data, cart management</li>
+<li><strong>Authentication</strong>: Access token via environment variable <code>SHOPIFY_STOREFRONT_ACCESS_TOKEN</code></li>
+<li><strong>Endpoints</strong>: <code>https://[store-domain]/api/2023-01/graphql.json</code></li>
+</ul>
+<p><strong>Image CDN</strong></p>
+<ul>
+<li><strong>Technology</strong>: Shopify CDN for product images (<code>cdn.shopify.com</code>)</li>
+<li><strong>Evidence</strong>: <code>next.config.ts</code> remotePatterns configuration</li>
+</ul>
+<h2>Communication Flows</h2>
+<h3>Primary Request Flow (Verified)</h3>
+<p>1. <strong>User Action</strong> → Next.js Frontend (HTTP/JSON)</p>
+<p>2. <strong>Router/Server Action</strong> → Shopify Integration Layer (Server Actions)</p>
+<p>3. <strong>GraphQL Query</strong> → Shopify Storefront API</p>
+<p>4. <strong>Response</strong> → Next.js Frontend (JSON)</p>
+<p>5. <strong>Component Update</strong> → React Component Library (state updates)</p>
+<h3>Cart Operations Flow (Verified)</h3>
+<p>1. <strong>User Interaction</strong> → Cart Context (Client-side optimistic updates)</p>
+<p>2. <strong>Server Action</strong> → Shopify Cart Mutations (GraphQL)</p>
+<p>3. <strong>Shopify Response</strong> → Cart Context (state reconciliation)</p>
+<h3>Static Asset Flow (Verified)</h3>
+<p>1. <strong>Build Process</strong> → Image Optimization (Next.js)</p>
+<p>2. <strong>Runtime</strong> → CDN Distribution (<code>cdn.shopify.com</code>)</p>
+<h2>Security and Authentication Boundaries (Verified)</h2>
+<h3>Shopify Integration Security</h3>
+<ul>
+<li><strong>Authentication</strong>: Shopify access token in environment variables</li>
+<li><strong>Authorization</strong>: Shopify storefront access controls</li>
+<li><strong>Data Isolation</strong>: Each deployment has unique Shopify store configuration</li>
+<li><strong>Environment Security</strong>: <code>.env.example</code> configuration template</li>
+</ul>
+<h3>Frontend Security</h3>
+<ul>
+<li><strong>No Server-Side API Keys</strong>: Shopify tokens handled via environment variables</li>
+<li><strong>CSRF Protection</strong>: Next.js built-in CSRF protection for Server Actions</li>
+<li><strong>Content Security Policy</strong>: Next.js default CSP with image CDN configuration</li>
+</ul>
+<h2>Configuration and Environment Boundaries (Verified)</h2>
+<h3>Critical Environment Variables</h3>
+<ul>
+<li><code>SHOPIFY_STORE_DOMAIN</code>: Shopify store subdomain</li>
+<li><code>SHOPIFY_STOREFRONT_ACCESS_TOKEN</code>: Authentication token for Shopify API</li>
+<li><code>SHOPIFY_REVALIDATION_SECRET</code>: Security secret for webhook validation</li>
+<li><code>VERCEL_PROJECT_PRODUCTION_URL</code>: Production URL for metadata</li>
+<li><code>COMPANY_NAME</code>, <code>SITE_NAME</code>: Branded application metadata</li>
+</ul>
+<h3>Configuration Management</h3>
+<ul>
+<li><strong>Build-Time Configuration</strong>: Next.js configuration (<code>next.config.ts</code>)</li>
+<li><strong>Runtime Configuration</strong>: Environment variables via Next.js runtime</li>
+<li><strong>Feature Flags</strong>: Implicit via Shopify store configuration</li>
+</ul>
+<h2>Caching Strategy (Verified)</h2>
+<h3>Next.js Caching Layers</h3>
+<ul>
+<li><strong>Router Cache</strong>: Next.js App Router caching</li>
+<li><strong>Data Cache</strong>: Shopify data tagged with <code>TAGS.collections</code>, <code>TAGS.products</code>, <code>TAGS.cart</code></li>
+<li><strong>Full-Stage Caching</strong>: Experimental features enabled (<code>ppr</code>, <code>inlineCss</code>, <code>useCache</code>)</li>
+<li><strong>Revalidation</strong>: Webhook-driven revalidation for Shopify data updates</li>
+</ul>
+<h2>Architectural Decisions and Rationale</h2>
+<h3>Server-Side Rendering Strategy</h3>
+<p><strong>Evidence</strong>: React Server Components, App Router, <code>baseUrl</code> configuration</p>
+<p><strong>Rationale</strong>: High performance, SEO optimization, reduced client-side bundle size</p>
+<h3>Client-Side State Management</h3>
+<p><strong>Evidence</strong>: <code>useOptimistic</code> hooks, React Context API, client component boundaries</p>
+<p><strong>Rationale</strong>: Responsive UI, instant user feedback, efficient cart operations</p>
+<h3>Shopify as Primary Data Source</h3>
+<p><strong>Evidence</strong>: All data access flows through <code>lib/shopify/</code> modules, environment variable configuration</p>
+<p><strong>Rationale</strong>: Headless commerce architecture, separation of concerns, existing Shopify expertise</p>
+<h2>Architecture Quality Assessment</h2>
+<h3>Strengths</h3>
+<ul>
+<li><strong>Clear Separation</strong>: Frontend presentation layer clearly separated from Shopify data layer</li>
+<li><strong>Performance Optimized</strong>: Server-side rendering and caching strategy</li>
+<li><strong>Component Architecture</strong>: Reusable component system with clear boundaries</li>
+<li><strong>Headless Architecture</strong>: Flexible integration with ecommerce backend</li>
+</ul>
+<h3>Potential Concerns</h3>
+<ul>
+<li><strong>Single Data Source</strong>: All data depends on Shopify availability</li>
+<li><strong>Build-Time Configuration</strong>: Requires environment variables for deployment</li>
+<li><strong>Client-Side Complexity</strong>: Complex cart state management in client components</li>
+</ul>
+<h2>Verification Summary</h2>
+<p><strong>Verified Components (4)</strong>:</p>
+<ul>
+<li>Next.js frontend application server</li>
+<li>Shopify integration layer</li>
+<li>React component library</li>
+<li>Vercel deployment infrastructure</li>
+</ul>
+<p><strong>Strongly Inferred Components (2)</strong>:</p>
+<ul>
+<li>Shopify database persistence</li>
+<li>WebSocket connections for real-time cart updates</li>
+</ul>
+<p><strong>Unverified Components (0)</strong>:</p>
+<ul>
+<li>No components without supporting evidence</li>
+</ul>
+<h2>Key Architectural Insights</h2>
+<p>1. <strong>Headless Commerce Pattern</strong>: The application follows a headless architecture, separating frontend presentation from ecommerce backend</p>
+<p>2. <strong>Performance-First Design</strong>: Extensive use of server-side rendering and caching for optimal performance</p>
+<p>3. <strong>Component-Based Architecture</strong>: Large component library enables consistent UI across the application</p>
+<p>4. <strong>Integration-Centric Design</strong>: The entire system is built around Shopify integration, with all data flowing through this single source</p>
+<p>5. <strong>Deployment Simplicity</strong>: Vercel platform provides seamless deployment with built-in optimizations</p>
+<p>This architecture is optimized for a specific use case - serving as a storefront template for Shopify merchants, balancing performance, developer experience, and integration capabilities.</p>
+</main>
+</body>
+</html>

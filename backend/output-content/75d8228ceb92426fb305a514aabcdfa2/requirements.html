@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>requirements</title>
+<style>
+body{margin:0;background:#f6f7f9;color:#1f2937;font-family:Arial,Helvetica,sans-serif}
+main{max-width:900px;margin:0 auto;padding:40px 28px;background:#fff;min-height:100vh}
+h1,h2,h3,h4,h5,h6{line-height:1.25;margin-top:1.5em}
+p,li{line-height:1.6}
+table{border-collapse:collapse;margin:18px 0;width:100%}
+td{border:1px solid #d1d5db;padding:8px;text-align:left;vertical-align:top}
+pre{background:#111827;color:#f9fafb;overflow:auto;padding:16px;border-radius:8px}
+code{background:#eef0f3;padding:2px 4px;border-radius:3px}
+pre code{background:transparent;padding:0}
+a{color:#2563eb}
+</style>
+</head>
+<body><main><h1>Requirements Specification — NetworkPro (CareerPro-v2)</h1>
+<h2>1. Basis and Scope</h2>
+<p>This specification reconstructs the requirements that the repository indicates the system was designed to satisfy. It draws on three classes of evidence:</p>
+<p>1. <strong>Stated product intent</strong> — the original project brief preserved in <code>attached_assets/Pasted-Project-Title-NetworkPro-Overview-...txt</code> (project title NetworkPro), which defines scope, features, and constraints.</p>
+<p>2. <strong>Documented intent</strong> — <code>README.md</code>, including feature descriptions, tech-stack claims, and environment setup instructions.</p>
+<p>3. <strong>Implemented behavior</strong> — executable evidence from <code>server/routes.ts</code>, <code>server/storage.ts</code>, <code>server/index.ts</code>, <code>shared/schema.ts</code>, and the client under <code>client/src</code> (pages, hooks, components).</p>
+<p>Each requirement is classified:</p>
+<table><tbody>
+<tr><td>Tag</td><td>Meaning</td></tr>
+<tr><td><strong>[V]</strong></td><td>Verified — directly enforced by executable behavior or explicitly stated in project documents and consistent with implementation</td></tr>
+<tr><td><strong>[I]</strong></td><td>Inferred — strongly implied by multiple implementation artifacts but never explicitly stated</td></tr>
+<tr><td><strong>[U]</strong></td><td>Uncertain — plausible interpretation with insufficient evidence to establish confidently</td></tr>
+</tbody></table>
+<p>A central caveat governs this whole specification: the application is an explicitly labeled demo (<code>vibe coded with replit. One shot created</code> per README; repeated <code>For demo</code> comments in code). Several headline capabilities are therefore <strong>simulated</strong> rather than real. Those simulations are documented below as requirements of the delivered system, not as aspirations of the original brief.</p>
+<p>---</p>
+<h2>2. Actors</h2>
+<table><tbody>
+<tr><td>Actor</td><td>Description</td><td>Evidence</td></tr>
+<tr><td>Single demo user</td><td>All server-side operations execute against the hard-coded identity <code>userId = 1</code>; there is no login flow. A seed user <code>demo/password</code> is created in memory at startup.</td><td><code>server/routes.ts</code> (comment <code>For demo, we&#x27;ll use userId 1</code> on every route); <code>server/storage.ts</code> constructor</td></tr>
+<tr><td>Anonymous browser visitor</td><td>Any visitor of the web UI can perform all actions; no authentication gate exists.</td><td>Absence of any auth middleware across all routes</td></tr>
+</tbody></table>
+<p>The original brief anticipated replacing OAuth with PDF upload for now ([U] for whether OAuth was planned later; no further evidence exists in the repository).</p>
+<p>---</p>
+<h2>3. Functional Requirements</h2>
+<h3>3.1 Profile ingestion (LinkedIn PDF upload)</h3>
+<ul>
+<li><strong>FR-1 [V]</strong> The system must provide a guided upload step on the Home tab that lets the user select a PDF representing their LinkedIn profile via file picker or drag-and-drop, showing selected-file metadata (name, size in MB) before submission. Evidence: <code>client/src/components/ui/file-uploader.tsx</code>.</li>
+<li><strong>FR-2 [V]</strong> The system must instruct users how to obtain the source artifact, i.e. how to export a LinkedIn profile as PDF. Evidence: instruction banner in <code>file-uploader.tsx</code> (Go to your LinkedIn profile → More button → Save to PDF).</li>
+<li><strong>FR-3 [V]</strong> When the user submits a file, the system must upload it to <code>POST /api/profile/upload</code> as multipart form data and present an analysis-in-progress state while processing. Evidence: <code>client/src/lib/pdf-parser.ts</code> (<code>parsePDF</code>), processing view in <code>client/src/pages/HomeTab.tsx</code>.</li>
+<li><strong>FR-4 [V]</strong> The upload handler must reject requests with no attached file (HTTP 400, message <code>No file uploaded</code>). Evidence: <code>server/routes.ts:515-517</code>.</li>
+<li><strong>FR-5 [V]</strong> The upload pipeline must enforce, server-side, a maximum file size of 5 MB and a MIME type restriction to <code>application/pdf</code>. Non-PDF uploads must be rejected with an error response conveying <code>Only PDF files are allowed</code>. Evidence: multer configuration, <code>server/routes.ts:8-19</code>; error translation in <code>server/index.ts:42-48</code>.</li>
+<li><strong>FR-6 [V]</strong> The client must independently enforce the 5 MB size limit before upload. File-type checking may be deliberately relaxed for the demo: non-PDF selections trigger a warning toast but are still submitted. Evidence: <code>validateFile</code> in <code>file-uploader.tsx:40-65</code> (explicit comment: <code>Return true anyway for the demo</code>).</li>
+<li><strong>FR-7 [V]</strong> For this release, the system must simulate profile extraction: regardless of the uploaded file contents, the pipeline must use a fixed sample LinkedIn profile text rather than parsing the actual document. Evidence: <code>extractTextFromPdf(buffer)</code> ignores its argument and logs <code>Simulating PDF extraction</code>; dependency <code>pdf-parse</code> is declared but never imported.</li>
+<li><strong>FR-8 [V]</strong> Extraction failure must be non-fatal: even if extraction fails, a minimal fallback profile (placeholder name/headline/skills) must be produced so the workflow can continue. Evidence: try/catch fallback in <code>routes.ts:349-356</code>.</li>
+<li><strong>FR-9 [V]</strong> The system must derive structured profile fields (name, headline, location, industry, current company, current job title, skills — capped at 10, education institutions, experience roles) from the extracted text, substituting clearly-labeled placeholder values (e.g. <code>Company from LinkedIn</code>) for fields that cannot be located. Evidence: <code>extractProfileFromText</code>, <code>routes.ts:359-442</code>.</li>
+<li><strong>FR-10 [V]</strong> Successfully processed profile data must replace the previously stored profile for the current user (create if absent, update if present) and be returned to the client. Evidence: create-or-update logic in <code>routes.ts:528-545</code>.</li>
+<li><strong>FR-11 [V]</strong> The system must offer a bypass that populates the workflow with demonstration data without requiring a real file upload. Evidence: Continue with Demo Data button constructing a dummy file in <code>file-uploader.tsx:108-111</code>.</li>
+<li><strong>FR-12 [V]</strong> On success or failure of upload/update operations, the system must notify the outcome through toast messages. Evidence: mutation callbacks in <code>client/src/hooks/useLinkedInProfile.ts</code>.</li>
+</ul>
+<h3>3.2 Profile management</h3>
+<ul>
+<li><strong>FR-13 [V]</strong> After a profile exists, the Home tab must render an analysis-complete confirmation, the structured profile details, and a prominent continuation action toward the Career Interests step. Evidence: <code>HomeTab.tsx</code> post-upload branch.</li>
+<li><strong>FR-14 [V]</strong> The system must let the user manually edit the profile: name, headline, location, industry, job title, company; add/remove skills; add/remove education entries (institution, degree, years); add/remove experience entries (title, company, duration). Evidence: <code>client/src/components/ui/profile-editor.tsx</code> (dialog with add/remove controls).</li>
+<li><strong>FR-15 [V]</strong> Manual edits must be persisted via <code>PUT /api/profile</code> and reflected immediately in the UI. If no profile exists yet, the request must fail with HTTP 404 (<code>Profile not found</code>) rather than creating one. Evidence: <code>useLinkedInProfile.updateMutation</code>; <code>server/routes.ts:571-589</code>.</li>
+<li><strong>FR-16 [V]</strong> Profile retrieval (<code>GET /api/profile</code>) must return HTTP 404 when no profile exists for the user. Evidence: <code>routes.ts:553-568</code>.</li>
+</ul>
+<h3>3.3 Career interests</h3>
+<ul>
+<li><strong>FR-17 [V]</strong> The Career Interests tab must request AI-style interest suggestions derived from the stored profile. The endpoint must refuse to generate suggestions when no profile exists (HTTP 404). Evidence: <code>GET /api/interests/suggestions</code>, <code>routes.ts:592-608</code>. <em>Qualification:</em> suggestions are generated from a fixed catalog and do not depend on profile contents (<code>suggestInterests(profile)</code> ignores its parameter) — personalization is simulated only [V for behavior, U for intended depth].</li>
+<li><strong>FR-18 [V]</strong> Suggestions must cover two categories — topics and skills — each pre-seeded with selection states so the user sees sensible defaults. Evidence: <code>suggestInterests</code>, <code>routes.ts:445-509</code>; rendering in <code>InterestsTab.tsx</code>.</li>
+<li><strong>FR-19 [V]</strong> The user must be able to toggle topic and skill selections individually, add free-text custom interests (Enter key or button), and remove custom interests. Duplicate custom entries must be rejected with feedback. Evidence: <code>InterestsTab.tsx</code> handlers.</li>
+<li><strong>FR-20 [V]</strong> Existing saved interests must be re-applied to the suggestion checkboxes when the tab loads, and custom interests previously saved must be restored as removable chips. Evidence: effects in <code>InterestsTab.tsx:129-153</code>.</li>
+<li><strong>FR-21 [V]</strong> Continuing past the tab must persist the union of selected suggested topics, custom interests, and selected skills as a single interests record (create-or-update keyed to the user) and navigate onward to Networking. Evidence: <code>handleSaveAndContinue</code>, <code>POST /api/interests</code> upsert at <code>routes.ts:611-639</code>.</li>
+<li><strong>FR-22 [V]</strong> Retrieving interests when none exist must return empty collections instead of an error. Evidence: <code>routes.ts:642-657</code>.</li>
+<li><strong>FR-23 [V]</strong> Live counts of selected topics (including custom interests) and skills must be displayed during editing. Evidence: badges bound to <code>selectedCount</code> in <code>InterestsTab.tsx</code>.</li>
+</ul>
+<h3>3.4 Networking recommendations</h3>
+<ul>
+<li><strong>FR-24 [V]</strong> The Networking tab must present three recommendation categories, each populated with a fixed set of five curated demo entries: People to Follow, People to Connect With, and Trending Posts (with author, position, reaction/comment counts). Evidence: <code>GET /api/recommendations/networking</code>, generator functions <code>generatePeopleToFollow</code>, <code>generatePeopleToConnect</code>, <code>generateTrendingPosts</code>; <code>NetworkingTab.tsx</code>.</li>
+<li><strong>FR-25 [V]</strong> Recommendations must be fetchable over HTTP independent of profile/interest state; generation does not consult either. Evidence: no reads of storage in the networking handler.</li>
+<li><strong>FR-26 [V]</strong> Each recommended person card must support Follow or Connect style primary actions (acknowledged via toast only — no external network integration), Save-for-Later toggling, and Ignore (removing the card from the current view with confirmation toast). Evidence: <code>RecommendationCard.tsx</code>, <code>NetworkingTab.tsx</code> <code>handleFollow</code>/<code>handleConnect</code>.</li>
+<li><strong>FR-27 [V]</strong> The category lists must initially display a subset (3 people per people-list, 2 posts) and expose a Show More control that reveals remaining items incrementally (+3 / +2 respectively) until exhausted. Evidence: visibility counters in <code>NetworkingTab.tsx</code>.</li>
+<li><strong>FR-28 [V]</strong> The user must be able to refresh recommendations manually; refreshing re-invokes retrieval but returns the same static catalog (no new data is synthesized per request). Evidence: <code>RefreshButton</code> wiring to <code>refetch</code> in <code>useRecommendations.ts</code>.</li>
+<li><strong>[Gap noted under Section 10]</strong> The brief also demanded Experts to Consult; no such category exists in the API, types, or UI.</li>
+</ul>
+<h3>3.5 Jobs and career goals</h3>
+<ul>
+<li><strong>FR-29 [V]</strong> The Jobs tab must allow definition of career goals through constrained choice lists: Desired Role (Product Manager / Senior Product Manager / Director of Product / VP of Product), Industry (Technology / Healthcare / Finance / Education), Location (San Francisco CA / Remote / New York NY / Seattle WA), Salary Range ($120k-150k / $150k-180k / $180k-210k / $210k+). Free-text goals are not supported. Evidence: Select options in <code>JobsTab.tsx:91-150</code>.</li>
+<li><strong>FR-30 [V]</strong> Goals must be persistable as a single record per user (create-or-update) via <code>POST /api/career-goals</code>; when none exist, retrieval must return built-in defaults matching those choices. Evidence: <code>routes.ts:698-749</code>.</li>
+<li><strong>FR-31 [V]</strong> Updating goals must refresh the displayed job recommendations afterward. Evidence: <code>handleUpdateGoals</code> calls <code>refreshRecommendations()</code> after saving.</li>
+<li><strong>FR-32 [V]</strong> The Jobs tab must present three recommendation groups of five static demo entries: Top Job Openings (with title, company, location, posting age, applicant count, salary range, match percentage), Recommended Courses (provider, rating, review count), and Skills to Develop (demand badge, description, quantified advantage claim such as +35% job opportunities). Evidence: <code>GET /api/recommendations/jobs</code>; generators <code>generateJobOpenings</code>, <code>generateCourses</code>, <code>generateSkills</code>; <code>JobsTab.tsx</code>.</li>
+<li><strong>FR-33 [V]</strong> Job cards must support Apply Now (simulated — toast acknowledgment only), Save/Unsave, and Ignore behaviors, with visual match-strength styling (green &gt;= 90%, emerald &gt;= 80%, yellow &gt;= 70%, gray otherwise). Evidence: <code>JobCard.tsx</code> <code>getBadgeColor</code>.</li>
+<li><strong>FR-34 [V]</strong> Courses and skill cards must support Save/Unsave and Ignore behaviors. Evidence: <code>CourseCard.tsx</code>, <code>SkillCard.tsx</code>.</li>
+<li><strong>[Gap noted under Section 10]</strong> The brief demanded Top 5 Recruiters to Connect With and Connect actions on recruiters; neither appears in API, types, or UI.</li>
+<li><strong>FR-35 [V]</strong> Job/course/skill lists must use the same incremental Show More pattern (initially 3 visible, +3 per activation). Evidence: counters in <code>JobsTab.tsx</code>.</li>
+</ul>
+<h3>3.6 Saved items (Save for Later repository)</h3>
+<ul>
+<li><strong>FR-36 [V]</strong> The system must persist bookmarked recommendations with their full payload so they outlive page interactions within the running process: creation via <code>POST /api/saved-items</code>, deletion via <code>DELETE /api/saved-items/:id</code> (HTTP 404 when identifier unknown), and listing via <code>GET /api/saved-items</code> with optional filtering by item type query parameter. Evidence: <code>routes.ts:752-800</code>.</li>
+<li><strong>FR-37 [V]</strong> Bookmarkable content types must be limited to person, job, course, post, and skill; toggling save-state must reflect immediately (bookmark icon fill state, toast feedback) and invalidation must re-sync other views of the collection. Evidence: <code>SavedItem.itemType</code> union in <code>client/src/types/index.ts:123</code>; hook logic in <code>hooks/useSavedItems.ts</code>.</li>
+<li><strong>FR-38 [V]</strong> Deletion of a saved item must confirm removal only for items actually stored; unknown identifiers must yield an error surfaced to the user. Evidence: <code>deleteSavedItem</code> boolean return mapped to 404 at <code>routes.ts:771-785</code>.</li>
+</ul>
+<h3>3.7 Workflow navigation and presentation</h3>
+<ul>
+<li><strong>FR-39 [V]</strong> The UI must offer four top-level tabs — Home, Career Interests, Networking, Jobs — reachable by direct click from any tab, with an active-tab indicator; a sequential wizard order (Home → Interests → Networking → Jobs) is offered through forward/back buttons but is not enforced. Evidence: <code>App.tsx</code> tab switch; <code>components/layout/TabNavigation.tsx</code>.</li>
+<li><strong>FR-40 [V]</strong> Long-running fetches must display spinners/skeleton-style progress states including explanatory copy, e.g. Analyzing Your Professional Profile during upload and processing. Evidence: loading branches in all four tab pages.</li>
+<li><strong>FR-41 [V]</strong> All outbound failures (fetch or HTTP non-OK) must surface the failure to the user rather than failing silently. Evidence: <code>throwIfResNotOk</code> in <code>lib/queryClient.ts</code>; destructive toasts in hooks.</li>
+<li><strong>FR-42 [V]</strong> The interface must support light and dark themes, user-toggleable from the header, with the choice remembered across sessions in browser local storage under key <code>networkpro-theme</code> (default light). Evidence: <code>lib/theme-provider.tsx</code>; <code>main.tsx</code> provider wiring; Header toggle.</li>
+</ul>
+<p>---</p>
+<h2>4. Business and Domain Rules</h2>
+<ul>
+<li><strong>BR-1 [V] Single demo identity:</strong> every operation acts on exactly one implicit user (id 1). There are no multi-user separation requirements in force. Evidence: hard-coded <code>userId = 1</code> throughout <code>routes.ts</code>.</li>
+<li><strong>BR-2 [V] One-of-each user records:</strong> the system maintains at most one profile, one interests record, and one career-goals record per user; repeated submissions update in place (upsert-by-user semantics). Evidence: get-then-create-or-update sequences in <code>routes.ts</code>; lookup by userId in <code>MemStorage</code>.</li>
+<li><strong>BR-3 [V] Unlimited typed bookmarks:</strong> unlike profiles/interests/goals, saved items accumulate as an append/delete collection with no deduplication requirement at the API level. Evidence: <code>createSavedItem</code> always inserts; dedupe is incidental client-side via <code>isItemSaved</code> checks.</li>
+<li><strong>BR-4 [V] Recommendation volume:</strong> each recommendation category delivers exactly five curated entries; pagination reveals them progressively but no mechanism supplies additional content. Evidence: five-element arrays in every generator; slice-based Show More.</li>
+<li><strong>BR-5 [V] Never-fail extraction and completion defaults:</strong> profile extraction and career-goal retrieval substitute predefined demo defaults in place of absent data, keeping the journey completable even without genuine inputs. Evidence: fallback strings in <code>extractProfileFromText</code>; default goal object at <code>routes.ts:736-741</code>.</li>
+<li><strong>BR-6 [V] Skill capping:</strong> extracted skill lists are trimmed to at most ten entries; individual entries must be shorter than 50 characters to qualify. Evidence: filters in <code>extractProfileFromText</code>.</li>
+<li><strong>BR-7 [I] Presentation thresholds for match strength:</strong> percentage-based match scores drive tiered badge coloring (&gt;=90 / &gt;=80 / &gt;=70 bands). Inferred from the deterministic mapping in <code>JobCard.getBadgeColor</code>; no requirement document mentions thresholds.</li>
+<li><strong>BR-8 [U] Seeded credentials:</strong> storage seeds username <code>demo</code> password <code>password</code>. With no authentication surface exposed, these credentials appear vestigial (perhaps scaffolding for future auth) — purpose cannot be established from the repository.</li>
+<li><strong>BR-9 [V] Profile-first gating for interests:</strong> interest suggestions require an existing profile; interests and recommendations themselves do not. This encodes the brief&#x27;s intended sequence (profile -&gt; interests -&gt; networking/jobs) at exactly one boundary.</li>
+</ul>
+<p>---</p>
+<h2>5. Interface Requirements</h2>
+<h3>5.1 HTTP API contract [V]</h3>
+<p>All routes are unauthenticated and speak JSON except the multipart upload.</p>
+<table><tbody>
+<tr><td>Method &amp; Path</td><td>Input</td><td>Success output</td><td>Failure behavior</td></tr>
+<tr><td>POST <code>/api/profile/upload</code></td><td>Multipart field <code>pdf</code> (PDF, &lt;= 5 MB)</td><td>Full profile object</td><td>400 no file; error response on rejection/failure</td></tr>
+<tr><td>GET <code>/api/profile</code></td><td>–</td><td>Profile object</td><td>404 <code>Profile not found</code></td></tr>
+<tr><td>PUT <code>/api/profile</code></td><td>JSON body (profile fields)</td><td>Updated profile</td><td>404 when absent</td></tr>
+<tr><td>GET <code>/api/interests/suggestions</code></td><td>–</td><td><code>{ suggestedTopics[], suggestedSkills[] }</code> incl. preselection flags</td><td>404 without profile</td></tr>
+<tr><td>POST <code>/api/interests</code></td><td>JSON <code>{ topics[], skills[] }</code></td><td>Stored interests record</td><td>500-class error responses</td></tr>
+<tr><td>GET <code>/api/interests</code></td><td>–</td><td><code>{ topics[], skills[] }</code></td><td>Empty arrays when absent</td></tr>
+<tr><td>GET <code>/api/recommendations/networking</code></td><td>–</td><td><code>{ peopleToFollow, peopleToConnect, trendingPosts }</code> (5 each)</td><td>Error response on failure</td></tr>
+<tr><td>GET <code>/api/recommendations/jobs</code></td><td>–</td><td><code>{ jobOpenings, recommendedCourses, skillsToDevelop }</code> (5 each)</td><td>Error response on failure</td></tr>
+<tr><td>POST <code>/api/career-goals</code></td><td>JSON goal fields</td><td>Stored goals record</td><td>Error response on failure</td></tr>
+<tr><td>GET <code>/api/career-goals</code></td><td>–</td><td>Goals record or fixed defaults</td><td>Error response on failure</td></tr>
+<tr><td>POST <code>/api/saved-items</code></td><td>JSON <code>{ itemType, itemId, itemData }</code></td><td>Created record</td><td>Error response on failure</td></tr>
+<tr><td>GET <code>/api/saved-items?type=</code></td><td>Optional type filter</td><td>Array of records</td><td>Error response on failure</td></tr>
+<tr><td>DELETE <code>/api/saved-items/:id</code></td><td>Numeric path id</td><td><code>{ success: true }</code></td><td>404 when unknown</td></tr>
+</tbody></table>
+<p>Cross-cutting interface requirements:</p>
+<ul>
+<li><strong>INT-1 [V]</strong> Every API interaction must carry cookies (<code>credentials: include</code> on both mutations and queries), anticipating cookie-based sessions. No server component currently issues or consumes a session cookie — readiness only, not an active contract [I].</li>
+<li><strong>INT-2 [V]</strong> Non-OK responses must raise client-side errors embedding the numeric status and response body text. Evidence: <code>throwIfResNotOk</code>.</li>
+<li><strong>INT-3 [V]</strong> Update/goal/interest request bodies are accepted as opaque JSON merged directly onto stored records; no runtime schema validation occurs despite Zod insert schemas being defined in <code>shared/schema.ts</code>. This is a deliberate contract permissiveness (or an omission) — see Section 10.</li>
+<li><strong>INT-4 [V]</strong> All API traffic must be logged with method, path, status, duration, and a truncated (80-char) snapshot of the JSON response. Evidence: middleware in <code>server/index.ts:9-37</code>.</li>
+<li><strong>INT-5 [V]</strong> In development the SPA must be served through Vite with HMR (all unmatched paths returning transformed <code>index.html</code>); in production a built static bundle must be served with index.html fallback for client-side routes. Evidence: <code>server/vite.ts</code>.</li>
+</ul>
+<h3>5.2 Browser/UI interfaces [V]</h3>
+<ul>
+<li>Document title/description: NetworkPro - Career Networking App framing the product externally (<code>client/index.html</code>).</li>
+<li>Upload widget accepts <code>.pdf</code> files only via the picker filter, communicates the 5 MB cap in copy, and supports drag-and-drop affordances (visual active state).</li>
+<li>Toast notifications constitute the mandatory feedback channel for all mutating actions.</li>
+</ul>
+<h3>5.3 Internal module interface [V]</h3>
+<p>Shared TypeScript types in <code>shared/schema.ts</code> (database-shaped) and <code>client/src/types/index.ts</code> (domain-shaped) define the vocabulary exchanged between client and server (profiles, interests, saved items with typed payload <code>itemData</code>, career goals, recommendation envelopes). Drizzle-Zod insert schemas exist for validation potential but are unused at runtime boundaries (see INT-3).</p>
+<p>---</p>
+<h2>6. Data Requirements</h2>
+<p>Entities the system must represent (<strong>[V]</strong> for structure — declared identically in the Drizzle schema and mirrored in-memory):</p>
+<table><tbody>
+<tr><td>Entity</td><td>Required fields</td><td>Optional/defaulted fields</td><td>Constraints &amp; lifecycle</td></tr>
+<tr><td><code>users</code></td><td><code>username</code> (unique in schema), <code>password</code></td><td>–</td><td>Serial id; seed row created at startup</td></tr>
+<tr><td><code>profiles</code></td><td><code>userId</code>, <code>name</code></td><td>headline, location, industry, currentJobTitle, currentCompany, summary, avatarUrl</td><td><code>experience</code>, <code>education</code>, <code>skills</code>, <code>certifications</code> are JSON collections defaulted empty; <code>createdAt</code> timestamp; lookups by userId</td></tr>
+<tr><td><code>interests</code></td><td><code>userId</code></td><td><code>topics</code>, <code>skills</code> JSON arrays defaulted empty; <code>createdAt</code></td><td>One per user (lookup by userId)</td></tr>
+<tr><td><code>savedItems</code></td><td><code>userId</code>, <code>itemType</code>, <code>itemId</code>, <code>itemData</code> (JSON)</td><td>–</td><td>Multi-row collection; optional filtering by type; deletion by id</td></tr>
+<tr><td><code>careerGoals</code></td><td><code>userId</code></td><td>desiredRole, industry, location, salaryRange; <code>createdAt</code></td><td>One per user (lookup by userId)</td></tr>
+</tbody></table>
+<ul>
+<li><strong>DAT-1 [V]</strong> Each user-owned datum must carry <code>createdAt</code> set automatically at insertion time.</li>
+<li><strong>DAT-2 [V]</strong> Identifiers are monotonically increasing integers assigned at insertion.</li>
+<li><strong>DAT-3 [V — with material qualification]</strong> Persistence target ambiguity: PostgreSQL tables are fully declared (<code>shared/schema.ts</code>) and <code>drizzle.config.ts</code> mandates <code>DATABASE_URL</code> for migration workflows, yet the runtime storage engine is an in-process Map-based store (<code>MemStorage</code>) with no database connection anywhere in server code; <code>@neondatabase/serverless</code> is installed but unimported. Consequently: structure requirements above are authoritative, durability requirements are <strong>not</strong> satisfied by the running system (data resets on restart). See Section 10.</li>
+<li><strong>DAT-4 [I]</strong> Validation schemas (<code>insertProfileSchema</code>, etc.) indicate an intended requirement that insert payloads conform to entity shapes; enforcement is presently absent (INT-3), so treat validation as designed-but-dormant.</li>
+<li><strong>DAT-5 [V]</strong> Recommendation payloads are considered volatile reference data — cacheable for short periods (5-minute staleness window client-side) and safe to discard, since regeneration is stateless.</li>
+<li><strong>DAT-6 [V]</strong> User-authored selections (interests, goals, bookmarks, edited profile) must remain available for the lifetime of the server process without expiration or retention limits.</li>
+<li><strong>DAT-7 [U]</strong> Dead alternative persistence path: <code>client/src/lib/storage.ts</code> implements localStorage-based storage under <code>networkpro-*</code> keys (profile, interests, saved items, career goals, dark mode) duplicating the server contract — no component imports it. Whether it represents a fallback requirement abandoned mid-development cannot be established from the repository.</li>
+</ul>
+<p>---</p>
+<h2>7. Security Requirements (Evidenced)</h2>
+<p>The security posture that can actually be attributed to this repository is narrow. Listed here as observed constraints and explicit absences (not as claimed guarantees):</p>
+<ul>
+<li><strong>SEC-1 [V]</strong> Upload protection: server-enforced 5 MB maximum and strict <code>application/pdf</code> MIME check constrain abuse of the sole file-input channel. Evidence: multer config.</li>
+<li><strong>SEC-2 [V]</strong> JSON-body parsing bounded to well-formed request entities via express json/urlencoded middleware; oversized-request limits rely on framework defaults (no custom limits configured) [I for exactness].</li>
+<li><strong>SEC-3 [Absent — documented as fact]</strong> No authentication, authorization, role separation, CSRF protection, rate limiting, or transport-layer configuration exists in code. All endpoints are publicly callable, and because identity is hard-coded, any caller effectively operates (and can overwrite or delete) the single demo user&#x27;s data. Dependencies suggesting intended auth (<code>passport</code>, <code>passport-local</code>, <code>express-session</code>, <code>connect-pg-simple</code>) are installed but entirely unwired. Treating authentication as a satisfied requirement would contradict the evidence; it is instead an identified open area.</li>
+<li><strong>SEC-4 [V]</strong> Sensitive-data handling: no secrets are consumed at runtime (README lists <code>DATABASE_URL</code> and <code>SESSION_SECRET</code> env variables, but neither is read by the server; <code>DATABASE_URL</code> is required only by the drizzle-kit migration tool). Uploaded files are held in memory transiently and discarded — nothing stores file bytes beyond the request lifecycle.</li>
+<li><strong>SEC-5 [U]</strong> Unvalidated writes: profile-update, interest, goal, and saved-item payloads are merged verbatim, meaning arbitrary fields injected by a client would be retained. Whether sanitization was deemed unnecessary for the demo or deferred is unknowable from the repository.</li>
+</ul>
+<p>---</p>
+<h2>8. Non-Functional Requirements</h2>
+<p>Conservatively reconstructed quality attributes supported by implementation evidence:</p>
+<ul>
+<li><strong>NFR-1 [V] Observability (basic):</strong> all <code>/api/*</code> requests must emit console log lines with timing and truncated response snapshots — sufficient for interactive debugging in a single-node demo. No metrics/tracing/alerting infrastructure exists.</li>
+<li><strong>NFR-2 [V] Perceived responsiveness:</strong> multi-step asynchronous flows must display immediate progress feedback (spinner panels, pulsing progress bars with copy such as This may take a few moments) instead of blocking silently. Applied uniformly to upload, suggestion-loading, and recommendation-fetching paths.</li>
+<li><strong>NFR-3 [V] Resilience against extraction/handler failure:</strong> processing errors must degrade to informative responses/toasts and never crash the server. The global error handler converts thrown errors into JSON with status/message while surfacing the exception in logs (<code>index.ts:42-48</code>), and extraction specifically catches-and-falls-back (FR-8).</li>
+<li><strong>NFR-4 [V] Deterministic client caching policy:</strong> user-owned data must be treated as stale only after explicit mutation (staleTime Infinity, refetchOnWindowFocus off, retries disabled), while recommendations gain a 5-minute freshness window. Evidence: <code>queryClient.ts</code> defaults; per-hook staleTime overrides. The pragmatic implication: the app assumes a single-user session whose truth changes only through its own actions.</li>
+<li><strong>NFR-5 [V] Maintainability mechanisms:</strong> end-to-end TypeScript strict mode across client/server/shared (<code>tsconfig.json</code>), a single shared type/module system with path aliases (<code>@/</code>, <code>@shared/</code>), and a type-check script (<code>npm run check</code>) constitute the maintained-quality tooling. There are no linters/tests configured.</li>
+<li><strong>NFR-6 [I] Accessibility/atmosphere basics:</strong> dark-mode support, keyboard-usable custom interest entry (Enter submits), sr-only labels on icon-only buttons, responsive layouts with breakpoint-aware grids and icon-collapsed tab labels on small screens. Sourced from consistent Tailwind patterns across components; depth of accessibility compliance is unverifiable.</li>
+<li><strong>NFR-7 [Explicitly unsupported]</strong> No numerical performance targets (latency, throughput, availability) can be attributed to this repository. The 5 MB upload cap is the only quantified resource constraint.</li>
+<li><strong>NFR-8 [V] Portability/scale assumptions:</strong> a single fixed port (5000) bound to <code>0.0.0.0</code> with reusePort and combined API+static serving implies a single-process deployment model without horizontal scaling provisions (<code>server/index.ts:59-69</code>).</li>
+</ul>
+<p>---</p>
+<h2>9. Operational and Deployment Requirements</h2>
+<ul>
+<li><strong>OPS-1 [V]</strong> Runtime lifecycle commands: <code>npm run dev</code> (tsx-executed server with Vite middleware), <code>npm run build</code> (Vite client bundle to <code>dist/public</code> + esbuild server bundle, packages externalized), <code>npm start</code> (<code>NODE_ENV=production node dist/index.js</code>), <code>npm run db:push</code> (drizzle-kit migration push gated on <code>DATABASE_URL</code>), <code>npm run check</code> (type-check). Evidence: <code>package.json</code> scripts.</li>
+<li><strong>OPS-2 [V]</strong> Environment-variable expectations per README: <code>DATABASE_URL</code> and <code>SESSION_SECRET</code>. Implementation reality: neither variable affects the running application today; only <code>db:push</code> fails without <code>DATABASE_URL</code> (<code>drizzle.config.ts</code> throws). Documentation and implementation diverge here (Section 10).</li>
+<li><strong>OPS-3 [V]</strong> Serving modes: development couples Vite dev-server middleware (with runtime-error overlay plugin and Replit-specific plugins when <code>REPL_ID</code> is set) behind Express; production serves the compiled static bundle with SPA fallback. Source-of-truth decision logic in <code>server/index.ts:53-57</code> and <code>vite.config.ts</code>.</li>
+<li><strong>OPS-4 [I]</strong> Replit heritage: mandatory port 5000 (commented as the only non-firewalled port), the <code>REPL_ID</code> conditional plugin, and the drizzle push flow indicate operation primarily within a Replit workspace; nothing else in the repo prescribes deployment topology.</li>
+<li><strong>OPS-5 [U]</strong> External hosting claims: README carries a Vercel deploy badge/link and asserts a Vercel-deployed frontend. The repository contains no <code>vercel.json</code> or equivalent hosting manifest; how a deployment reconciles the README&#x27;s both-has-backend/no-backend contradiction is not resolvable from repository contents.</li>
+<li><strong>OPS-6 [V]</strong> Startup must not depend on external services: no database connections, outbound APIs, or background workers are initialized at boot; the only startup side effect is seeding the demo user in memory.</li>
+<li><strong>OPS-7 [Verified absence]</strong> No health-check endpoint, scheduled jobs, worker processes, containerization, or CI pipeline exists in the repository.</li>
+</ul>
+<p>---</p>
+<h2>10. Stated vs Implemented: Discrepancies and Open Areas</h2>
+<p>The following matrix contrasts the original brief and README claims with the delivered system. These discrepancies are part of the reconstructed requirements picture, not editorial notes for future work.</p>
+<table><tbody>
+<tr><td>#</td><td>Stated requirement (source)</td><td>Delivered behavior (evidence)</td><td>Assessment</td></tr>
+<tr><td>D-1</td><td>Extract real details from uploaded LinkedIn PDFs (brief §Overview, Core Features)</td><td>Extraction simulated; sample text used regardless of input (<code>extractTextFromPdf</code>)</td><td>Simulated capability; FR-7 documents the operating rule</td></tr>
+<tr><td>D-2</td><td>AI-powered suggestions/recommendations personalized to profile, interests, goals (brief §2, §3, §4)</td><td>Fixed catalogs returned unconditionally; suggestion handler merely gates on profile existence</td><td>Personalization unimplemented; volume guarantees honored</td></tr>
+<tr><td>D-3</td><td>Top 5 Recruiters to Connect With (brief §4) and Experts to Consult (brief §3)</td><td>Absent from API, shared types, and UI</td><td>Not implemented categories</td></tr>
+<tr><td>D-4</td><td>Persistent storage of preferences, recommendations, ignored suggestions (brief General UI, §Refreshing &amp; Storing)</td><td>Server persistence is in-memory only (resets on restart); localStorage duplicate unused; schema declares Postgres</td><td>Partially satisfied within process lifetime only</td></tr>
+<tr><td>D-5</td><td>README tech stack: Node.js/Express backend with PostgreSQL+Drizzle</td><td>Express backend exists; PostgreSQL declared but disconnected; Neo4j-like Neon driver unused</td><td>README stack overstated relative to runtime</td></tr>
+<tr><td>D-6</td><td>README simultaneously claims backend presence and states Currently does not have any backend - vercel deployed frontend</td><td>Both cannot hold; runtime is an integrated Express+Serving process on port 5000</td><td>Self-contradictory README; server-side evidence dominates</td></tr>
+<tr><td>D-7</td><td>Load More fetches the next five recommendations (brief §3)</td><td>Show More paginates over already-fetched static data; refresh regenerates identical content</td><td>Presentation-only interpretation</td></tr>
+<tr><td>D-8</td><td>Apply / Connect actions (brief §4)</td><td>Acknowledged via toasts; no external LinkedIn/job-board integration exists</td><td>Simulated outcomes</td></tr>
+<tr><td>D-9</td><td>Enforced wizard sequencing implied by four-step journey</td><td>Tabs freely navigable; order encouraged not required</td><td>Looser-than-brief navigation freedom</td></tr>
+<tr><td>D-10</td><td>Zod insert schemas defined (shared/schema.ts) imply validated writes</td><td>Handlers trust <code>req.body</code> wholesale</td><td>Dormant validation</td></tr>
+<tr><td>D-11</td><td>Interest suggestions influence subsequent tabs (brief §2)</td><td>No downstream consumer reads stored interests; recommendation endpoints ignore them</td><td>Chain unimplemented beyond storage</td></tr>
+</tbody></table>
+<p>Additional verified characteristics not attributable to stated intent: demo-skip upload bypass (FR-11), relaxed client file-type check (FR-6), seeded demo credentials (BR-8), API response logging (INT-4), unused dead modules (<code>pages/not-found.tsx</code>, router scaffolding never wired, localStorage helper module).</p>
+<h2>11. Unknowns</h2>
+<ul>
+<li>The origin timeline and whether any phases were consciously de-scoped versus unfinished cannot be established from commit history within the provided analysis scope.</li>
+<li>Whether a real LLM/NLP pipeline was planned behind the simulated functions is plausible given copy such as Our AI is processing your LinkedIn data and code comments noting what a real implementation would use, but no configuration, prompt assets, or integration stubs exist — classified <strong>[U]</strong>.</li>
+<li>Intended authentication UX (the seed user suggests some form of accounts) leaves the target behavior undocumented — <strong>[U]</strong>.</li>
+<li>Exact deployment environment(s) in actual use (Replit, Vercel, self-hosted) beyond README claims — <strong>[U]</strong>.</li>
+</ul>
+<p><strong>Summary:</strong> the repository evidences a coherent, single-user demo system whose genuine requirements center on: constrained PDF ingestion with simulated extraction; editable structured profile capture; interests/goals declaration with constrained vocabularies; fixed five-item recommendation catalogs across networking and jobs domains; typed bookmarking with ignore/save affordances; progressive disclosure with refresh; theme persistence; informative feedback on every async action; and a simple observability baseline — all operating without authentication or durable storage, in deliberate demo trade-offs consistently acknowledged inside the code itself.</p></main></body>
+</html>

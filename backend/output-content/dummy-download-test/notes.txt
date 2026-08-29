@@ -1,0 +1,1 @@
+This unrelated file must not be included in the ZIP.

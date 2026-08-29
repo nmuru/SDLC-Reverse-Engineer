@@ -1,0 +1,385 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>future-directions</title>
+
+<style>
+body {
+    margin: 0;
+    background: #f6f7f9;
+    color: #1f2937;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 28px;
+    background: #fff;
+    min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    line-height: 1.25;
+    margin-top: 1.5em;
+}
+
+p, li {
+    line-height: 1.6;
+}
+
+table {
+    border-collapse: collapse;
+    margin: 18px 0;
+    width: 100%;
+}
+
+td {
+    border: 1px solid #d1d5db;
+    padding: 8px;
+    text-align: left;
+    vertical-align: top;
+}
+
+pre {
+    background: #111827;
+    color: #f9fafb;
+    overflow: auto;
+    padding: 16px;
+    border-radius: 8px;
+}
+
+code {
+    background: #eef0f3;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+pre code {
+    background: transparent;
+    padding: 0;
+}
+
+a {
+    color: #2563eb;
+}
+
+.mermaid {
+    overflow-x: auto;
+    margin: 24px 0;
+    padding: 12px;
+}
+</style>
+
+<script type="module">
+import mermaid from
+    "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+mermaid.initialize({
+    startOnLoad: true,
+    securityLevel: "loose",
+    theme: "default",
+});
+</script>
+
+</head>
+
+<body>
+<main>
+<h1>Future Directions</h1>
+<h2>1. Executive Synthesis  </h2>
+<p>NetworkPro (CareerPro‑v2) is currently a <strong>single‑user demo</strong> that:</p>
+<ul>
+<li>uploads a LinkedIn PDF,  </li>
+<li>persists a parsed profile, interests, career goals, and saved items in an <strong>in‑memory store</strong>,  </li>
+<li>renders <strong>static, hard‑coded recommendations</strong> for people, jobs, courses, skills, and trending posts.  </li>
+</ul>
+<p>The README notes that the system has <strong>“no backend”</strong> in production and was created as a <strong>one‑shot prototype</strong>.  </p>
+<h3>Credible next directions (evidence‑backed)</h3>
+<table><tbody>
+<tr><td>Direction</td><td>Rationale</td></tr>
+<tr><td>Replace the simulated PDF parser and static recommendation generators with real extraction and ranking logic</td><td>The system does not currently fulfil its stated purpose.</td></tr>
+<tr><td>Introduce real authentication and per‑user data isolation</td><td>Every server route is hard‑coded to <code>userId = 1</code>.</td></tr>
+<tr><td>Activate the PostgreSQL persistence layer declared in <code>shared/schema.ts</code> and <code>drizzle.config.ts</code></td><td>These files exist but are never wired into <code>server/storage.ts</code>, which currently exports a <code>MemStorage</code> instance.</td></tr>
+<tr><td>Establish a testing harness</td><td>No automated tests (<code><em>.test.</em></code>, Vitest, Jest, CI) are present.</td></tr>
+<tr><td>Address security, observability, and deployment gaps</td><td>The system has not yet been productionised.</td></tr>
+</tbody></table>
+<p>Speculative product ideas (Chrome extension, mobile app, separate recommendation microservice) are <strong>explicitly exploratory</strong> and not part of the near‑term direction.</p>
+<p>---</p>
+<h2>2. Current‑State Baseline  </h2>
+<h3>Application purpose  </h3>
+<p><em>README</em> and <code>HomeTab.tsx</code> describe a <strong>four‑step journey</strong>:  </p>
+<p>1. Upload LinkedIn profile  </p>
+<p>2. Select interests  </p>
+<p>3. View networking recommendations  </p>
+<p>4. View job / course / skill recommendations  </p>
+<p>The copy consistently frames the system as <strong>AI‑driven</strong> (“Our AI is processing your LinkedIn data…”, “AI matching algorithm”, “Trending skills updated weekly”).</p>
+<h3>Backend  </h3>
+<ul>
+<li><strong>Express + TypeScript</strong> in <code>server/index.ts</code> (listening on port 5000).  </li>
+<li>All HTTP endpoints are defined in a single <code>registerRoutes</code> function (<code>server/routes.ts</code>).  </li>
+<li><strong>Multer</strong> handles PDF upload (5 MB limit).  </li>
+<li>Dependencies indicate intent to use PostgreSQL: <code>drizzle</code>, <code>@neondatabase/serverless</code>, <code>drizzle‑zod</code>, <code>connect‑pg‑simple</code>.</li>
+</ul>
+<h3>Storage  </h3>
+<ul>
+<li><code>server/storage.ts</code> defines an <code>IStorage</code> interface and a <strong><code>MemStorage</code></strong> implementation backed by in‑process <code>Map</code>s.  </li>
+<li>Exported <code>storage</code> is the <code>MemStorage</code> instance.  </li>
+<li>The Drizzle schema (<code>shared/schema.ts</code>) and <code>drizzle‑kit</code> config (<code>drizzle.config.ts</code>) are <strong>unused at runtime</strong>.  </li>
+<li><code>package.json</code> defines a <code>db:push</code> script, but there is no migrations folder nor any code that invokes Drizzle.</li>
+</ul>
+<h3>Data model  </h3>
+<p>Five tables:  </p>
+<table><tbody>
+<tr><td>Table</td><td>Purpose</td></tr>
+<tr><td><code>users</code></td><td>User accounts</td></tr>
+<tr><td><code>profiles</code></td><td>LinkedIn‑style profile (fields <code>experience</code>, <code>education</code>, <code>skills</code>, <code>certifications</code> as <code>jsonb</code>)</td></tr>
+<tr><td><code>interests</code></td><td>User‑selected interests</td></tr>
+<tr><td><code>savedItems</code></td><td>Bookmarked items (<code>itemType</code> = `person</td><td>job</td><td>course</td><td>post</td><td>skill`)</td></tr>
+<tr><td><code>careerGoals</code></td><td>Desired role, industry, location, salary range</td></tr>
+</tbody></table>
+<h3>Frontend  </h3>
+<ul>
+<li><strong>React 18 + TypeScript + Vite</strong>.  </li>
+<li>Uses <strong>TanStack React Query</strong>, <strong>wouter</strong> (declared but not used), <strong>Tailwind</strong>, <strong>Radix UI</strong>, <strong>shadcn‑style components</strong>, <strong>Framer Motion</strong>.  </li>
+<li>Renders four tabs: <code>HomeTab</code>, <code>InterestsTab</code>, <code>NetworkingTab</code>, <code>JobsTab</code>.</li>
+</ul>
+<h3>Recommendations (server)  </h3>
+<p><code>server/routes.ts</code> defines six <strong>hard‑coded literal arrays</strong>:</p>
+<ul>
+<li><code>generatePeopleToFollow</code>  </li>
+<li><code>generatePeopleToConnect</code>  </li>
+<li><code>generateTrendingPosts</code>  </li>
+<li><code>generateJobOpenings</code>  </li>
+<li><code>generateCourses</code>  </li>
+<li><code>generateSkills</code>  </li>
+</ul>
+<p>These return identical data for every request and <strong>do not read</strong> the uploaded profile, interests, or career goals. Comments repeatedly note “Generate mock recommendations”, “Simulating PDF text extraction”, and “For demo, we’ll use userId 1”.</p>
+<h3>PDF processing (server)  </h3>
+<ul>
+<li><code>extractTextFromPdf</code> <strong>ignores</strong> the uploaded buffer and returns a hard‑coded LinkedIn text block.  </li>
+<li><code>extractProfileFromText</code> uses shallow regexes with comments:  </li>
+</ul>
+<p>  &gt; “This is a very simplistic extraction for demo purposes. A real implementation would use NLP or more sophisticated regex patterns.”</p>
+<h3>Identity &amp; authorization  </h3>
+<ul>
+<li><code>shared/schema.ts</code> defines a <code>users</code> table.  </li>
+<li><code>IStorage</code> declares <code>getUser</code>, <code>getUserByUsername</code>, <code>createUser</code>.  </li>
+<li><code>MemStorage</code> seeds a single <code>demo</code> user.  </li>
+<li>Packages <code>passport</code>, <code>passport‑local</code>, <code>express‑session</code>, <code>connect‑pg‑simple</code>, <code>memorystore</code> are listed in <code>package.json</code> <strong>but never imported</strong> or wired.  </li>
+<li>No session middleware in <code>server/index.ts</code>.  </li>
+<li>All routes use a constant <code>userId = 1</code>.</li>
+</ul>
+<h3>Testing  </h3>
+<ul>
+<li>No <code><em>.test.</em></code> files, <strong>no test script</strong> in <code>package.json</code>.  </li>
+<li>No test runner configuration (Vitest, Jest, Playwright, RTL).  </li>
+<li>No CI configuration (<code>.github/workflows</code>, <code>.gitlab-ci.yml</code>, etc.).</li>
+</ul>
+<h3>Deployment  </h3>
+<ul>
+<li>README shows a <strong>Vercel badge</strong>, but there is <strong>no <code>vercel.json</code></strong>, no Dockerfile, no IaC.  </li>
+<li>The same Express process serves both the API and the static client on port 5000.</li>
+</ul>
+<h3>Observability  </h3>
+<ul>
+<li>Manual request logging in <code>server/index.ts</code> for <code>/api</code> paths.  </li>
+<li>No structured logging, metrics, tracing, or health‑check endpoint.</li>
+</ul>
+<h3>External dependencies &amp; secrets  </h3>
+<ul>
+<li><code>process.env.DATABASE_URL</code> is required by <code>drizzle.config.ts</code>, but the rest of the application does <strong>not</strong> read it.  </li>
+<li>README mentions <code>SESSION_SECRET</code>; no code references it.</li>
+</ul>
+<p>---</p>
+<h2>3. Explicit Evidence of Future Intent  </h2>
+<table><tbody>
+<tr><td>Evidence</td><td>Location</td><td>Indicates</td></tr>
+<tr><td>Hard‑coded <code>userId = 1</code> across nine routes with <code>// For demo, we&#x27;ll use userId 1</code> comments</td><td><code>server/routes.ts:525‑791</code></td><td>Authentication &amp; per‑user isolation are planned but not implemented</td></tr>
+<tr><td><code>passport</code>, <code>passport‑local</code>, <code>express‑session</code>, <code>connect‑pg‑simple</code>, <code>memorystore</code> declared in <code>package.json</code> but not imported</td><td><code>package.json:60‑61,49,59</code></td><td>Session‑based auth infrastructure is intended</td></tr>
+<tr><td>Drizzle schema, <code>drizzle‑kit</code> config, <code>@neondatabase/serverless</code>, <code>drizzle‑zod</code> dependencies present but <code>MemStorage</code> is the active storage</td><td><code>shared/schema.ts</code>, <code>drizzle.config.ts</code>, <code>package.json:16,51‑52</code>, <code>server/storage.ts:213</code></td><td>PostgreSQL persistence is intended</td></tr>
+<tr><td>Comments: “This would normally use NLP or ML to suggest relevant interests”, “A real implementation would use NLP or more sophisticated regex patterns”, “In a real application, we would use pdf.js to extract text on the client”</td><td><code>server/routes.ts:361,446</code>; <code>client/src/lib/pdf-parser.ts:2</code></td><td>Real extraction &amp; ranking logic is acknowledged as missing</td></tr>
+<tr><td><code>simulateExtractText</code> fallback that returns a hard‑coded LinkedIn text block</td><td><code>client/src/lib/pdf-parser.ts:38‑83</code></td><td>Client‑side PDF preview is a placeholder</td></tr>
+<tr><td><code>parsePDF</code> client wrapper POSTs to <code>/api/profile/upload</code> but <code>extractTextFromPdf</code> ignores the buffer</td><td><code>client/src/lib/pdf-parser.ts:10‑32</code>; <code>server/routes.ts:308‑356</code></td><td>Server‑side extraction is the intended replacement</td></tr>
+<tr><td><code>pdf-parse</code> and <code>react-pdf</code> declared in <code>package.json</code></td><td><code>package.json:63,69</code></td><td>Real PDF text extraction was planned</td></tr>
+<tr><td><code>ws</code> declared in <code>package.json</code></td><td><code>package.json:76</code></td><td>A websocket path may be intended (not used)</td></tr>
+<tr><td>Career‑goal fields (<code>desiredRole</code>, <code>industry</code>, <code>location</code>, <code>salaryRange</code>) and the “Update Goals” button in <code>JobsTab.tsx</code></td><td><code>client/src/pages/JobsTab.tsx:84‑159</code>; <code>server/routes.ts:697‑749</code></td><td>Data model anticipates recommendations conditioned on these inputs</td></tr>
+<tr><td><code>savedItems</code> table with `itemType: &#x27;person&#x27;</td><td>&#x27;job&#x27;</td><td>&#x27;course&#x27;</td><td>&#x27;post&#x27;</td><td>&#x27;skill&#x27;<code> and a </code>userId` foreign key</td><td><code>shared/schema.ts:34‑41</code></td><td>Personalized bookmarking is anticipated across the five recommendation categories</td></tr>
+<tr><td><code>useInterests</code>, <code>useCareerGoals</code>, <code>useSavedItems</code> hooks exist; <code>useRecommendations</code> returns three independent queries, none of which takes the saved profile, interests, or goals as input</td><td><code>client/src/hooks/*</code></td><td>Data flow anticipates per‑user personalization but the server does not yet honor it</td></tr>
+<tr><td>README states: “Currently does not have any backend – vercel deployed frontend”</td><td><code>README.md:12</code></td><td>Production deployment is acknowledged as frontend‑only</td></tr>
+</tbody></table>
+<p>These items <strong>signal intent</strong>, not commitment, and help confirm that the directions below align with the repository’s existing boundaries.</p>
+<p>---</p>
+<h2>4. Functional and Capability Gaps  </h2>
+<p>1. <strong>PDF extraction is simulated</strong> – <code>extractTextFromPdf</code> always returns the same hard‑coded profile, so the user’s actual LinkedIn data is never parsed.  </p>
+<p>2. <strong>Recommendations ignore user data</strong> – All six <code>generate*</code> functions return literal arrays; the UI shows identical content for every user.  </p>
+<p>3. <strong>“AI” is not present</strong> – No model invocation, embedding store, vector search, or provider configuration (OpenAI, Anthropic, etc.). <code>pdf-parse</code> and <code>react-pdf</code> are unused.  </p>
+<p>4. <strong>Authentication absent</strong> – Single hard‑coded <code>userId = 1</code>; no sign‑in, sign‑up, session middleware, or route that reads an authenticated user.  </p>
+<p>5. <strong>Career‑goals input not consumed</strong> – Data is persisted but never influences recommendation outputs.  </p>
+<p>6. <strong>Saved items persisted but not displayed</strong> – Endpoints exist (<code>POST/GET/DELETE /api/saved-items</code>), but no UI component reads them; <code>useSavedItems</code> is unused.  </p>
+<p>7. <strong>Profile editing incomplete</strong> – <code>HomeTab</code> toggles <code>showEditForm</code> but never renders the edit form; <code>updateProfile</code> mutation is unreachable.  </p>
+<p>8. <strong>Client‑side validation disabled</strong> – File‑type check in <code>file-uploader.tsx</code> is intentionally bypassed for the demo.</p>
+<p>These gaps are <strong>evidence‑backed</strong> and represent the most credible near‑term focus because they lie within the system’s already‑drawn boundary.</p>
+<p>---</p>
+<h2>5. Architectural and Implementation Constraints  </h2>
+<ul>
+<li><strong>Single‑process state</strong> – <code>MemStorage</code> stores everything in in‑process <code>Map</code>s; restart, redeploy, or scaling loses all data. Horizontal scaling is impossible.  </li>
+<li><strong>Tight coupling of recommendations to the request handler</strong> – Generators live inside <code>server/routes.ts</code>; they cannot be reused, retried, or replaced without editing the route file. No service layer or provider abstraction exists.  </li>
+<li><strong>Provider opacity</strong> – Hard‑coded recommendation data; no configuration surface or separation between data, ranking, and presentation.  </li>
+<li><strong>Synchronous upload path</strong> – <code>POST /api/profile/upload</code> awaits a single async function; with real PDF parsing and downstream model calls, the request could become a long‑running synchronous operation that blocks the Express worker.  </li>
+<li><strong>No server‑side validation</strong> – Although <code>drizzle‑zod</code> is a declared dependency, no route validates input using Zod schemas.  </li>
+<li><strong>No background work, queue, or cache</strong> – Every <code>/api/recommendations/*</code> call recomputes the literal generator; no memoization, Redis, or cache invalidation policy.  </li>
+<li><strong>No separation between authenticated and anonymous users</strong> – Session middleware is absent; the system cannot differentiate request origins.  </li>
+<li><strong>Single‑source frontend deployment</strong> – No <code>vercel.json</code>; the Express server serves both API and static client, limiting deployment flexibility.  </li>
+<li><strong>Minimal environment configuration</strong> – Only <code>DATABASE_URL</code> is required; <code>SESSION_SECRET</code> is mentioned in the README but never read.</li>
+</ul>
+<p>These constraints describe concrete consequences that future work must address; they are not criticisms.</p>
+<p>---</p>
+<h2>6. Implementation and Maintainability Risks  </h2>
+<ul>
+<li><strong>Duplicated hard‑coded payloads</strong> – Six separate literal arrays plus the simulated PDF text block duplicate knowledge.  </li>
+<li><strong>Mixed concerns in <code>server/routes.ts</code></strong> – HTTP routing, PDF parsing, profile extraction, mock recommendation generation, and CRUD are all in a single ~800‑line file.  </li>
+<li><strong>Type drift between client and server</strong> – <code>client/src/types/index.ts</code> defines public shapes (<code>LinkedInProfile</code>, <code>Job</code>, <code>Person</code>, <code>Course</code>, <code>SkillToLearn</code>); server returns Drizzle‑derived shapes for persisted entities and hand‑written literals for recommendations. Mismatch exists.  </li>
+<li><strong>Brittle regex parsing</strong> – <code>extractProfileFromText</code> uses shallow regexes dependent on the exact layout of the simulated text.  </li>
+<li><strong>Inconsistent error handling</strong> – Most handlers log to console and return a generic 500; no error class hierarchy or structured response.  </li>
+<li><strong>No request validation for write paths</strong> – <code>PUT /api/profile</code>, <code>POST /api/interests</code>, <code>POST /api/career-goals</code>, <code>POST /api/saved-items</code> accept arbitrary JSON.  </li>
+<li><strong>Heavy UI duplication</strong> – Each tab component implements its own loading, error, and empty states; no shared components or error boundaries. Inline <code>&lt;style dangerouslySetInnerHTML&gt;</code> used in <code>HomeTab.tsx</code> and <code>InterestsTab.tsx</code> instead of Tailwind/CSS.  </li>
+<li><strong>Undeclared <code>wouter</code> usage</strong> – Declared in <code>package.json</code> but routing is performed with local <code>useState</code>.  </li>
+<li><strong>Two storage implementations in tension</strong> – <code>IStorage</code> is clean but only <code>MemStorage</code> is used; Drizzle schema and <code>db:push</code> script are present but unused, making persistence implicit rather than enforced.</li>
+</ul>
+<p>---</p>
+<h2>7. Testing and Verification Gaps  </h2>
+<ul>
+<li><strong>No automated tests</strong> – No <code><em>.test.</em></code> files, no test scripts, no runner configuration, no CI.  </li>
+<li><strong>Consequences</strong>  </li>
+<li><code>extractProfileFromText</code>’s regexes lack fixture tests.  </li>
+<li>Recommendation generators and the interest‑suggestion function have no property or snapshot tests.  </li>
+<li><code>IStorage</code> implementation is untested.  </li>
+<li>No integration tests for route handlers; behavior is verified only manually.  </li>
+<li>No component or interaction tests for the client.  </li>
+<li>No end‑to‑end test for the PDF upload flow (no fixture PDFs, no negative tests for oversized files, wrong MIME, malformed PDFs).  </li>
+<li>Hard‑coded <code>userId = 1</code> routes lack tests that would expose missing per‑user isolation.  </li>
+<li>No CI gate; even a TypeScript syntax check (<code>npm run check</code>) is not enforced on pull requests.</li>
+</ul>
+<p><strong>Closing this gap</strong> is the highest‑leverage improvement because all other directions depend on reliable verification.</p>
+<p>---</p>
+<h2>8. Operational, Scalability, Reliability, and Security Directions  </h2>
+<p>1. <strong>Persistence &amp; durability</strong> – Replace <code>MemStorage</code> with a <strong>Drizzle‑backed <code>DbStorage</code></strong> that satisfies <code>IStorage</code>.  </p>
+<ul>
+<li>Run <code>npm run db:push</code> to generate migrations.  </li>
+<li>Provision PostgreSQL (Neon or any Postgres) and wire the connection into <code>server/index.ts</code>.  </li>
+<li>Keep <code>MemStorage</code> as a fallback for tests.  </li>
+</ul>
+<p>2. <strong>Session‑based authentication</strong> – Wire <code>passport</code>, <code>passport‑local</code>, <code>express‑session</code>, <code>connect‑pg‑simple</code>, and <code>memorystore</code> into the server.  </p>
+<ul>
+<li>Replace every <code>const userId = 1</code> with the authenticated user (<code>req.user.id</code>).  </li>
+<li>Protect upload, profile, interests, career‑goals, and saved‑items routes.  </li>
+</ul>
+<p>3. <strong>Real PDF parsing</strong> – Implement actual text extraction in <code>extractTextFromPdf</code> using <code>pdf-parse</code> (or a more capable library).  </p>
+<ul>
+<li>Normalize text into a stable intermediate representation.  </li>
+<li>Feed this into a more robust extraction step (heuristic or model‑based).  </li>
+</ul>
+<p>4. <strong>Real recommendation provider</strong> – Introduce a <strong><code>RecommendationProvider</code></strong> abstraction.  </p>
+<ul>
+<li>First implementation can filter/rank a curated dataset based on extracted profile, interests, and career goals.  </li>
+<li>Subsequent implementations may call external models or APIs.  </li>
+<li>Refactor the six <code>generate*</code> functions to become adapters to this provider.  </li>
+</ul>
+<p>5. <strong>Request validation</strong> – Apply the existing Zod schemas (via <code>drizzle‑zod</code> or hand‑written) to <strong>every write route</strong>.  </p>
+<ul>
+<li>Return structured 4xx errors for malformed payloads.  </li>
+</ul>
+<p>6. <strong>Error handling &amp; observability</strong> – Add a centralized error‑handling middleware that maps known error types to HTTP responses and logs the rest in a structured format.  </p>
+<ul>
+<li>Implement a <code>/api/health</code> endpoint.  </li>
+<li>Replace inline <code>console.log</code> with a structured logger.  </li>
+</ul>
+<p>7. <strong>Security baseline</strong> –  </p>
+<ul>
+<li>Add CSRF protection for session routes.  </li>
+<li>Restrict CORS to the deployed origin.  </li>
+<li>Set secure cookie flags.  </li>
+<li>Rate‑limit upload and recommendation endpoints.  </li>
+<li>Enforce deeper content‑type checks or virus scanning on uploaded PDFs.  </li>
+</ul>
+<p>8. <strong>Deployment strategy</strong> – Choose between:  </p>
+<ul>
+<li><strong>Single‑process</strong> (Express serving API + static client, as today)  </li>
+<li><strong>Split deployment</strong> (Vercel for static client, separate Node host for API).  </li>
+<li>Add a <code>vercel.json</code> or containerize the API; define required env vars (<code>DATABASE_URL</code>, <code>SESSION_SECRET</code>).  </li>
+</ul>
+<p>9. <strong>Caching &amp; concurrency</strong> – If real recommendation providers are introduced, move computation to a <strong>background job</strong> (in‑process, queue, or scheduled refresh) and serve cached results from <code>/api/recommendations/*</code>.  </p>
+<p>---</p>
+<h2>9. Strategic Technical Directions  </h2>
+<ul>
+<li><strong>Recommendation provider abstraction</strong> – <code>RecommendationProvider</code> interface with methods such as <code>getNetworkingRecommendations(user)</code> and <code>getJobRecommendations(user)</code>.  </li>
+<li><strong>Client‑side router</strong> – Activate the declared <code>wouter</code> dependency to enable deep links and decouple navigation from the current <code>useState</code>‑driven tab system.  </li>
+<li><strong>Interest‑suggestion model</strong> – Replace the static <code>suggestInterests</code> function with one that uses the extracted profile and user‑selected interests.  </li>
+<li><strong>Saved‑items UI</strong> – Add a “Saved” tab or sidebar that reads from <code>GET /api/saved-items</code> and renders items grouped by <code>itemType</code>.  </li>
+<li><strong>Profile editing UI</strong> – Wire the existing <code>ProfileEditor</code> component into <code>HomeTab</code> to allow users to correct parsed data.  </li>
+<li><strong>Theme &amp; design‑system consolidation</strong> – Move the inline <code>&lt;style dangerouslySetInnerHTML&gt;</code> blocks from <code>HomeTab.tsx</code> and <code>InterestsTab.tsx</code> into the global stylesheet; reuse shadcn components consistently.  </li>
+</ul>
+<p>---</p>
+<h2>10. Priority Roadmap  </h2>
+<h3>High Priority  </h3>
+<table><tbody>
+<tr><td>#</td><td>Direction</td><td>Evidence</td><td>Prerequisite(s)</td><td>Benefit</td><td>Confidence</td></tr>
+<tr><td>1</td><td><strong>Add automated testing before adding behavior</strong></td><td>Zero test files, no test script, no CI</td><td>Choose a test runner (Vitest), add a <code>test</code> script, create fixture profiles &amp; PDFs, set up minimal GitHub Actions CI</td><td>Prevents regression; enables safe refactors of recommendation code</td><td>Evidence‑backed</td></tr>
+<tr><td>2</td><td><strong>Activate PostgreSQL persistence layer</strong></td><td>Drizzle schema, config, dependencies present; <code>MemStorage</code> only used</td><td>Provision Postgres, run <code>npm run db:push</code>, create <code>migrations</code> folder, implement <code>DbStorage</code></td><td>Data durability, multi‑process safety; foundation for later work</td><td>Evidence‑backed</td></tr>
+<tr><td>3</td><td><strong>Implement authentication &amp; per‑user isolation</strong></td><td>Hard‑coded <code>userId = 1</code>; auth packages declared but unused; <code>users</code> table &amp; Zod schemas exist</td><td>Wire session middleware, expose sign‑in/up routes, replace constants with <code>req.user.id</code></td><td>Enables multiple users, unlocks personalization</td><td>Evidence‑backed</td></tr>
+<tr><td>4</td><td><strong>Replace simulated PDF parser with real extraction</strong></td><td><code>extractTextFromPdf</code> ignores buffer; <code>pdf-parse</code> declared; comment acknowledges real extraction needed</td><td>Integrate <code>pdf-parse</code> (or alternative), create stable intermediate format, adjust <code>extractProfileFromText</code></td><td>System begins to fulfil its purpose; real profile persisted</td><td>Evidence‑backed</td></tr>
+<tr><td>5</td><td><strong>Replace static recommendation generators with a real provider</strong></td><td>Six <code>generate*</code> functions are literal arrays; UI promises AI‑driven recommendations; career‑goal inputs never used</td><td>Define <code>RecommendationProvider</code> interface, create first deterministic implementation, refactor route handlers</td><td>Real personalization; core value proposition realized</td><td>Evidence‑backed</td></tr>
+</tbody></table>
+<h3>Medium Priority  </h3>
+<table><tbody>
+<tr><td>#</td><td>Direction</td><td>Evidence</td><td>Prerequisite(s)</td><td>Benefit</td></tr>
+<tr><td>6</td><td><strong>Add request validation using Zod schemas</strong></td><td><code>drizzle‑zod</code> declared; write routes accept arbitrary JSON</td><td>Apply Zod schemas to each write route</td><td>Prevent malformed data, surface client bugs early</td></tr>
+<tr><td>7</td><td><strong>Build Saved Items UI</strong></td><td><code>savedItems</code> table, <code>useSavedItems</code> hook, storage methods exist but unused</td><td>Create a “Saved” tab/component, reuse existing card UI</td><td>Completes half‑implemented bookmarking feature</td></tr>
+<tr><td>8</td><td><strong>Render existing <code>ProfileEditor</code> from <code>HomeTab</code></strong></td><td><code>showEditForm</code> set but never rendered; <code>ProfileEditor</code> component exists</td><td>Conditional render of <code>ProfileEditor</code> and wire <code>updateProfile</code> mutation</td><td>Allows profile corrections; closes read/write loop</td></tr>
+<tr><td>9</td><td><strong>Refactor recommendation logic out of <code>server/routes.ts</code></strong></td><td>Single ~800‑line file mixes concerns</td><td>Extract services/modules (PDF parser, profile extractor, recommendations)</td><td>Independent testability, easier replacement</td></tr>
+<tr><td>10</td><td><strong>Introduce observability basics</strong> – structured logs, <code>/api/health</code>, request‑id propagation</td><td>Only manual <code>console.log</code>; no health check</td><td>Add small logger, health endpoint, middleware for request IDs</td><td>Production readiness, safe operation behind load balancer</td></tr>
+</tbody></table>
+<h3>Longer‑Term (Exploratory)  </h3>
+<ul>
+<li>Model‑backed extraction &amp; ranking layer (external LLM or embedding store).  </li>
+<li>Real‑time or background refresh for recommendations (WebSocket – <code>ws</code> already declared).  </li>
+<li>Full client‑side routing with <code>wouter</code> and URL‑driven tabs.  </li>
+<li>Per‑user recommendation history &amp; feedback loop (e.g., “dismissed” flag).  </li>
+<li>External integrations (LinkedIn API, real job boards, course providers).  </li>
+<li>Split deployment (Vercel static client + separate API host).  </li>
+</ul>
+<p>---</p>
+<h2>11. Confidence and Evidence Summary  </h2>
+<table><tbody>
+<tr><td>Direction</td><td>Evidence‑backed</td><td>Strongly justified</td><td>Exploratory</td></tr>
+<tr><td>Add automated testing</td><td>✅ (zero tests)</td><td></td><td></td></tr>
+<tr><td>Activate PostgreSQL persistence</td><td>✅ (schema, config, deps)</td><td></td><td></td></tr>
+<tr><td>Authentication &amp; per‑user isolation</td><td>✅ (<code>userId = 1</code>, auth deps)</td><td></td><td></td></tr>
+<tr><td>Real PDF extraction</td><td>✅ (simulated today, <code>pdf-parse</code> declared)</td><td></td><td></td></tr>
+<tr><td>Real recommendation provider</td><td>✅ (literal generators, AI promises)</td><td></td><td></td></tr>
+<tr><td>Request validation</td><td>✅ (Zod deps, unvalidated writes)</td><td></td><td></td></tr>
+<tr><td>Saved items UI</td><td>✅ (half‑implemented)</td><td></td><td></td></tr>
+<tr><td>Wire existing <code>ProfileEditor</code></td><td>✅ (state set, component exists)</td><td></td><td></td></tr>
+<tr><td>Refactor <code>routes.ts</code></td><td>✅ (single large file)</td><td></td><td></td></tr>
+<tr><td>Observability basics</td><td>✅ (only inline logs)</td><td></td><td></td></tr>
+<tr><td>Model‑backed extraction &amp; ranking</td><td></td><td>✅ (UI promises AI)</td><td></td></tr>
+<tr><td>Real‑time refresh (WebSocket)</td><td></td><td>✅ (<code>ws</code> declared)</td><td></td></tr>
+<tr><td>External integrations (LinkedIn, job boards)</td><td></td><td></td><td>✅ (depends on product scope)</td></tr>
+<tr><td>Split deployment (Vercel + API)</td><td></td><td>✅ (current single‑process limits scaling)</td><td></td></tr>
+<tr><td>Client‑side router</td><td></td><td></td><td>✅ (<code>wouter</code> declared but unused)</td></tr>
+</tbody></table>
+<p>---</p>
+<h2>12. Closing Notes  </h2>
+<ul>
+<li>The prototype presents a <strong>coherent narrative</strong> (upload → interests → networking → jobs) but the narrative is undermined by <strong>static data</strong>, <strong>simulated parsing</strong>, and a <strong>single hard‑coded user</strong>.  </li>
+<li>The repository already contains <strong>substantial groundwork</strong> for the highest‑value directions: Drizzle schema, Zod schemas, authentication dependencies, PDF libraries, and the <code>IStorage</code> interface. The majority of work is therefore <strong>wiring and substitution</strong>, not wholesale redesign.  </li>
+<li>The roadmap intentionally orders <strong>low‑risk work first</strong> (tests, persistence, auth) to create a solid foundation before tackling <strong>higher‑risk work</strong> (real PDF parsing, recommendation provider).  </li>
+<li>Speculative product ideas (mobile app, browser extension, marketplace) are <strong>omitted</strong> because the repository does not yet establish a need or boundary for them. They can be revisited once the core value proposition is realized.</li>
+</ul>
+</main>
+</body>
+</html>
