@@ -11,6 +11,7 @@ from .agent_runner import run_phase_agent
 from .config import settings
 from .exporter import create_download_package
 from .renderer import render_analysis
+from .resource_diagnostics import ResourceDiagnostics
 
 
 PHASES = [
@@ -41,56 +42,80 @@ def _run_single_phase(
     provider: str,
     model: str,
     api_key: str,
+    diagnostics: Optional[ResourceDiagnostics] = None,
+    batch_index: Optional[int] = None,
 ) -> dict:
     """Run one independent analysis phase and render its final output."""
-    phase_workspace = workspace / phase_key
-    phase_workspace.mkdir(parents=True, exist_ok=True)
+    if diagnostics is not None:
+        diagnostics.phase_start(phase_key, phase_name, batch_index=batch_index)
 
-    raw_result = run_phase_agent(
-        phase=phase_key,
-        phase_name=phase_name,
-        workspace=phase_workspace,
-        repo_url=repo_url,
-        provider=provider,
-        model=model,
-        api_key=api_key,
-    )
+    try:
+        phase_workspace = workspace / phase_key
+        phase_workspace.mkdir(parents=True, exist_ok=True)
 
-    if not raw_result or not raw_result.strip():
-        raise RuntimeError(
-            f"OpenCode returned an empty result for phase '{phase_key}'."
+        raw_result = run_phase_agent(
+            phase=phase_key,
+            phase_name=phase_name,
+            workspace=phase_workspace,
+            repo_url=repo_url,
+            provider=provider,
+            model=model,
+            api_key=api_key,
         )
 
-    phase_output_dir = output_run_dir / phase_key
-    phase_output_dir.mkdir(parents=True, exist_ok=True)
+        if not raw_result or not raw_result.strip():
+            raise RuntimeError(
+                f"OpenCode returned an empty result for phase '{phase_key}'."
+            )
 
-    source_path = phase_output_dir / "opencode-output.md"
-    source_path.write_text(raw_result, encoding="utf-8")
+        phase_output_dir = output_run_dir / phase_key
+        phase_output_dir.mkdir(parents=True, exist_ok=True)
 
-    rendered_result = render_analysis(
-        phase=phase_key,
-        analysis=raw_result,
-        provider=provider,
-        model=model,
-        api_key=api_key,
-    )
+        source_path = phase_output_dir / "opencode-output.md"
+        source_path.write_text(raw_result, encoding="utf-8")
 
-    if not rendered_result or not rendered_result.strip():
-        raise RuntimeError(
-            f"Renderer returned an empty result for phase '{phase_key}'."
+        rendered_result = render_analysis(
+            phase=phase_key,
+            analysis=raw_result,
+            provider=provider,
+            model=model,
+            api_key=api_key,
         )
 
-    raw_path = phase_output_dir / "raw.md"
-    raw_path.write_text(rendered_result, encoding="utf-8")
+        if not rendered_result or not rendered_result.strip():
+            raise RuntimeError(
+                f"Renderer returned an empty result for phase '{phase_key}'."
+            )
 
-    return {
-        "phase": phase_key,
-        "phase_name": phase_name,
-        "raw_analysis": rendered_result,
-        "raw_path": str(raw_path),
-        "run_id": run_id,
-        "smoke_test": settings.pipeline_smoke_test,
-    }
+        raw_path = phase_output_dir / "raw.md"
+        raw_path.write_text(rendered_result, encoding="utf-8")
+
+        result = {
+            "phase": phase_key,
+            "phase_name": phase_name,
+            "raw_analysis": rendered_result,
+            "raw_path": str(raw_path),
+            "run_id": run_id,
+            "smoke_test": settings.pipeline_smoke_test,
+        }
+
+        if diagnostics is not None:
+            diagnostics.phase_end(
+                phase_key,
+                phase_name,
+                batch_index=batch_index,
+                status="completed",
+            )
+        return result
+    except Exception:
+        if diagnostics is not None:
+            diagnostics.phase_end(
+                phase_key,
+                phase_name,
+                batch_index=batch_index,
+                status="failed",
+            )
+        raise
 
 
 def _run_batch(
@@ -103,6 +128,8 @@ def _run_batch(
     provider: str = "openrouter",
     model: str = "stealth/ox-alpha",
     api_key: str = "",
+    diagnostics: Optional[ResourceDiagnostics] = None,
+    batch_index: Optional[int] = None,
 ) -> dict:
     """Run all phases in one batch concurrently."""
     batch_results = {}
@@ -120,6 +147,8 @@ def _run_batch(
                 provider,
                 model,
                 api_key,
+                diagnostics,
+                batch_index,
             ): phase_key
             for phase_key, phase_name in batch
         }
@@ -227,14 +256,67 @@ def analyze_repository(
             + ", ".join(sorted(duplicate_phases))
         )
 
-    with tempfile.TemporaryDirectory(prefix="reverse-engineer-") as tmp:
-        workspace = Path(tmp)
+    diagnostics_dir = Path(settings.resource_diagnostics_dir)
+    if not diagnostics_dir.is_absolute():
+        diagnostics_dir = Path(__file__).resolve().parents[1] / diagnostics_dir
 
-        if batch_mode == "parallel":
-            with ThreadPoolExecutor(max_workers=len(batches)) as executor:
-                future_to_batch = {
-                    executor.submit(
-                        _run_batch,
+    diagnostics = ResourceDiagnostics(
+        enabled=settings.resource_diagnostics_enabled,
+        output_dir=diagnostics_dir,
+        sample_interval_seconds=settings.resource_diagnostics_interval_seconds,
+        run_id=run_id,
+    )
+
+    diagnostics.start()
+    diagnostics.run_event(
+        "analysis_started",
+        repo_url=repo_url,
+        phases_per_batch=phases_per_batch,
+        batch_mode=batch_mode,
+        selected_phase_count=len(selected_phase_definitions),
+        number_of_batches=number_of_batches,
+    )
+
+    try:
+        with tempfile.TemporaryDirectory(prefix="reverse-engineer-") as tmp:
+            workspace = Path(tmp)
+
+            if batch_mode == "parallel":
+                diagnostics.run_event("batch_execution_started", mode="parallel")
+                with ThreadPoolExecutor(max_workers=len(batches)) as executor:
+                    future_to_batch = {
+                        executor.submit(
+                            _run_batch,
+                            batch,
+                            workspace,
+                            repo_url,
+                            output_run_dir,
+                            run_id,
+                            on_phase_complete,
+                            provider,
+                            model,
+                            api_key,
+                            diagnostics,
+                            index,
+                        ): index
+                        for index, batch in enumerate(batches)
+                    }
+
+                    first_error = None
+                    for future in as_completed(future_to_batch):
+                        try:
+                            batch_results = future.result()
+                            results.update(batch_results)
+                        except Exception as exc:
+                            if first_error is None:
+                                first_error = exc
+
+                    if first_error is not None:
+                        raise first_error
+            else:
+                diagnostics.run_event("batch_execution_started", mode="sequence")
+                for batch_index, batch in enumerate(batches):
+                    batch_results = _run_batch(
                         batch,
                         workspace,
                         repo_url,
@@ -244,40 +326,27 @@ def analyze_repository(
                         provider,
                         model,
                         api_key,
-                    ): index
-                    for index, batch in enumerate(batches)
-                }
+                        diagnostics,
+                        batch_index,
+                    )
+                    results.update(batch_results)
 
-                first_error = None
-                for future in as_completed(future_to_batch):
-                    try:
-                        batch_results = future.result()
-                        results.update(batch_results)
-                    except Exception as exc:
-                        if first_error is None:
-                            first_error = exc
+            create_download_package(output_run_dir)
 
-                if first_error is not None:
-                    raise first_error
-        else:
-            for batch in batches:
-                batch_results = _run_batch(
-                    batch,
-                    workspace,
-                    repo_url,
-                    output_run_dir,
-                    run_id,
-                    on_phase_complete,
-                    provider,
-                    model,
-                    api_key,
-                )
-                results.update(batch_results)
-
-        create_download_package(output_run_dir)
-
-    return {
-        "run_id": run_id,
-        "results": results,
-        "smoke_test": settings.pipeline_smoke_test,
-    }
+        diagnostics.run_event(
+            "analysis_completed",
+            completed_phase_count=len(results),
+        )
+        return {
+            "run_id": run_id,
+            "results": results,
+            "smoke_test": settings.pipeline_smoke_test,
+        }
+    except Exception as exc:
+        diagnostics.run_event(
+            "analysis_failed",
+            error_type=type(exc).__name__,
+        )
+        raise
+    finally:
+        diagnostics.stop()
