@@ -1,215 +1,749 @@
 ---
+
 name: business-purpose
-description: Reconstruct the actual business purpose of a software repository from repository evidence. Use when determining what problem the system solves, who it serves, what outcomes it provides, and what the software is fundamentally intended to accomplish.
----
+description: Reconstruct the fundamental purpose and motivating need behind a software repository from repository evidence. Use when determining why the software was created, what need, problem, opportunity, experiment, capability, or objective it serves, who benefits from it, and what outcome its creators appear to have intended.
+--------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
 
 # Business Purpose Reverse-Engineering Skill
 
 ## Objective
 
-Determine the most defensible explanation of why the software exists and what real-world problem it is intended to solve.
+Determine the most defensible explanation of **why this software exists**.
 
-The output is not a generic description of the repository, a list of technologies, or a restatement of the README. Reconstruct the business purpose from the combined evidence of user-facing behavior, application flows, domain concepts, data structures, APIs, configuration, documentation, tests, and implementation.
+For an enterprise application, this usually means reconstructing the business need that motivated the application.
 
-The result should explain the software in business terms while remaining grounded in technical evidence.
+However, do not assume that every repository represents an enterprise application or that every software system exists primarily to satisfy a commercial or organizational business need.
 
-## When to use
+The repository may instead exist to:
 
-Use this skill for the Business Purpose phase of the nine-phase reverse-engineering workflow.
+* solve an operational problem
+* automate a technical activity
+* enable another system
+* provide infrastructure
+* demonstrate a technology
+* explore a research question
+* experiment with a new capability
+* prototype an idea
+* teach or demonstrate a concept
+* provide a reusable library or framework
+* serve as a reference implementation
+* benchmark an approach
+* evaluate a product or platform
+* reproduce or investigate an existing system
 
-The repository may be a production system, prototype, internal tool, open-source application, library, service, monorepo, or incomplete implementation. Adapt the investigation to what actually exists.
+The task is therefore broader than asking:
+
+"What business problem does this application solve?"
+
+The fundamental question is:
+
+**"What motivating need, problem, opportunity, objective, or purpose appears to have caused this software to be created?"**
+
+When the repository represents an enterprise or organizational application, translate that answer into the business-need perspective where evidence permits.
+
+The output must remain grounded in repository evidence.
+
+Do not infer purpose merely from the repository name, technology stack, fashionable terminology, or assumptions about what similar applications normally do.
+
+## The role of Business Purpose in the reverse-engineering workflow
+
+Business Purpose is the first interpretive phase of the reverse-engineering process.
+
+It establishes the motivation that makes the later phases meaningful.
+
+For an enterprise-oriented system, the conceptual relationship is often:
+
+organizational vision
+→ organizational strategy
+→ business or operational need
+→ enterprise technology response
+→ business requirements
+→ software requirements
+→ design and implementation
+
+The repository will rarely contain enough evidence to reconstruct this entire chain.
+
+Do not invent corporate strategy, organizational vision, or management intent merely because they are absent from the source.
+
+Instead, reconstruct the highest level of motivation that the repository evidence can support.
+
+The preferred outcome for an enterprise application is to identify:
+
+**The business need that the application appears intended to address.**
+
+That business need then provides the conceptual starting point for the next phase, Business Requirements.
+
+For other kinds of repositories, identify the equivalent motivating purpose.
+
+For example:
+
+technology limitation
+→ technical need
+→ system or tool
+
+research question
+→ experimental objective
+→ prototype
+
+new technology
+→ demonstration objective
+→ demonstrator application
+
+developer pain point
+→ productivity need
+→ library or framework
+
+operational problem
+→ operational objective
+→ automation or system capability
+
+The agent must determine which model best fits the repository before forcing it into enterprise terminology.
+
+## Core principle
+
+Do not begin by asking:
+
+"What does the code do?"
+
+That question is necessary, but it is insufficient.
+
+The objective is to move through the following chain:
+
+**observable implementation and behavior
+→ supported capabilities and workflows
+→ problem or objective addressed
+→ motivating need or purpose**
+
+The final conclusion should explain why the capabilities appear to exist.
+
+A repository that can "create reports" is not yet understood.
+
+The relevant question is:
+
+"Why would its intended users need those reports, and what outcome does the repository appear intended to enable?"
+
+Similarly, a repository that "uses an AI model" has not thereby revealed its purpose.
+
+The relevant question is:
+
+"What problem, experiment, demonstration, capability, or opportunity motivated the use of the AI model?"
+
+## Determine the purpose model first
+
+Before reconstructing the purpose, determine what broad kind of repository you are investigating.
+
+Do not force a single classification when the repository legitimately serves multiple purposes.
+
+Consider the following purpose models.
+
+### Enterprise or business application
+
+The repository primarily appears intended to help an organization, business, customer, employee, partner, or market-facing process achieve a business outcome.
+
+Look for evidence of:
+
+* customers
+* employees
+* departments
+* business processes
+* transactions
+* products or services
+* revenue-related activity
+* compliance
+* operational efficiency
+* decision-making
+* workflow management
+
+The central question becomes:
+
+**"What business or organizational need is this software intended to serve?"**
+
+### Operational or institutional system
+
+The repository may serve an organization without having a commercial business objective.
+
+Examples include:
+
+* laboratory systems
+* university systems
+* government systems
+* research infrastructure
+* internal operational tools
+* nonprofit applications
+
+The central question becomes:
+
+**"What operational or institutional need motivated this system?"**
+
+### Infrastructure or system software
+
+The repository may primarily enable other software or computing environments.
+
+Examples include:
+
+* databases
+* runtimes
+* orchestration tools
+* monitoring systems
+* developer infrastructure
+* networking software
+
+The central question becomes:
+
+**"What technical capability or infrastructure problem does this software exist to provide or solve?"**
+
+### Library, framework, SDK, or developer tool
+
+The primary users may be developers or other software systems.
+
+The central question becomes:
+
+**"What capability, abstraction, productivity improvement, integration, or technical problem does this repository provide to its consumers?"**
+
+### Prototype or proof of concept
+
+The repository may exist primarily to validate whether an idea or approach can work.
+
+The central question becomes:
+
+**"What hypothesis, feasibility question, or proposed solution is this implementation intended to demonstrate?"**
+
+Do not mistake incomplete implementation for accidental incompleteness when the repository may intentionally be a proof of concept.
+
+### Technology demonstrator
+
+The repository may exist to demonstrate a new technology, platform, model, framework, integration, or technical technique.
+
+The central question becomes:
+
+**"What technology or capability is being demonstrated, and what aspect of it is the repository intended to make concrete?"**
+
+A technology demonstrator does not require a conventional business problem.
+
+The demonstration objective itself may be the primary purpose.
+
+### Research or experimentation
+
+The repository may exist to investigate a question rather than deliver a finished application.
+
+The central question becomes:
+
+**"What is being explored, evaluated, compared, measured, or learned?"**
+
+Look for experiments, benchmarks, hypotheses, datasets, evaluation logic, alternative implementations, and research-oriented documentation.
+
+### Educational or learning repository
+
+The primary purpose may be teaching, illustrating, or practicing a concept.
+
+The central question becomes:
+
+**"What knowledge, technique, technology, or workflow is the repository intended to teach or demonstrate?"**
+
+### Reference implementation or template
+
+The repository may exist to provide an example for others to copy, adapt, study, or extend.
+
+The central question becomes:
+
+**"What architecture, pattern, technology combination, or implementation approach is the repository intended to exemplify?"**
+
+### Unknown or mixed-purpose repository
+
+Some repositories contain insufficient evidence to establish a single purpose.
+
+Others combine multiple purposes.
+
+For example, a prototype may simultaneously:
+
+* demonstrate a new technology
+* explore product feasibility
+* provide a learning example
+
+Do not artificially select one purpose if the evidence supports multiple motivations.
+
+State the primary purpose and secondary purposes separately when necessary.
 
 ## Required questions
 
-Determine, as far as the repository allows:
+Determine, as far as repository evidence permits:
 
-1. What real-world problem does the software appear to solve?
-2. Who are the apparent users, operators, customers, or consuming systems?
-3. What activity or workflow does the software enable, automate, support, or simplify?
-4. What meaningful outcome does a user or consuming system obtain from it?
-5. What are the core domain concepts or entities that reveal the problem being addressed?
-6. What are the strongest technical signals supporting the inferred purpose?
-7. Is the business purpose explicitly documented, strongly implied by implementation, or only partially inferable?
-8. What important aspects of the purpose remain unknown?
+1. What appears to have motivated the creation of this software?
+2. What kind of need, problem, objective, opportunity, experiment, or purpose does the repository address?
+3. Which purpose model best fits the repository?
+4. Who are the apparent beneficiaries, users, consumers, operators, developers, researchers, or audiences?
+5. What activity, workflow, capability, experiment, or outcome does the software enable?
+6. What would remain difficult, impossible, inefficient, or unexplored without the software?
+7. What evidence most strongly supports the inferred purpose?
+8. Is the purpose explicitly stated, strongly implied, partially inferable, or genuinely unknown?
+9. Does the implemented behavior support the stated purpose?
+10. Are there multiple purposes or audiences?
+11. What important aspects of the original motivation cannot be reconstructed from the repository?
 
-Do not force answers to questions for which the repository has insufficient evidence.
+Do not force answers where evidence is insufficient.
 
 ## Investigation workflow
 
 ### Step 1: Establish repository context
 
-Start with repository reconnaissance.
+Begin with reconnaissance.
 
-Identify the application entry points, major applications or packages, README and documentation, dependency manifests, configuration, routes, APIs, domain models, schemas, database definitions, UI pages, command-line interfaces, background jobs, integrations, and tests.
+Identify:
 
-Determine whether the repository contains one system or multiple related systems.
+* repository structure
+* major applications or packages
+* README files
+* documentation
+* package metadata
+* application entry points
+* UI pages
+* APIs
+* command-line interfaces
+* domain models
+* schemas
+* integrations
+* configuration
+* tests
+* examples
+* demos
+* benchmarks
+* datasets
+* infrastructure artifacts
 
-Do not begin with the assumption that the repository's name accurately describes its business purpose.
+Determine whether the repository contains:
 
-### Step 2: Find explicit purpose statements
+* one coherent system
+* multiple related applications
+* a monorepo
+* examples accompanying a library
+* prototypes alongside production code
+* generated or vendored material
 
-Inspect the strongest available sources of explicit intent:
+Do not assume that the repository name accurately describes its purpose.
 
-- README files
-- project documentation
-- product descriptions
-- package metadata
-- application titles and descriptions
-- route or API documentation
-- UI labels and navigation
-- configuration descriptions
-- comments describing domain behavior
+### Step 2: Classify the repository's apparent purpose model
 
-Treat these as evidence of stated intent, not automatically as proof of implemented behavior.
+Before constructing a purpose statement, determine what kind of motivating context best fits the evidence.
 
-Record important discrepancies between stated purpose and implemented behavior.
+Ask:
 
-### Step 3: Identify user-facing behavior
+* Is this solving a business need?
+* Is it supporting an organizational operation?
+* Is it enabling developers or other systems?
+* Is it infrastructure?
+* Is it a prototype?
+* Is it an experiment?
+* Is it demonstrating a technology?
+* Is it educational?
+* Is it a reference implementation?
+* Is it a combination?
 
-Trace the main externally visible capabilities.
+Treat this classification as a hypothesis.
 
-For web applications, inspect routes, pages, forms, API endpoints, request and response schemas, and the backend handlers behind them.
+Do not finalize it until later evidence supports or challenges it.
 
-For services or libraries, inspect public APIs, commands, event consumers, and primary entry points.
+### Step 3: Find explicit statements of intent
 
-Ask what a user or consuming system can actually do with the software.
+Inspect the strongest available sources of stated purpose.
 
-Do not infer business purpose from isolated utility functions when the repository exposes a larger workflow.
+Prioritize:
 
-### Step 4: Identify domain concepts
+* README files
+* project documentation
+* product descriptions
+* package metadata
+* repository descriptions
+* application titles
+* example descriptions
+* architecture documentation
+* API documentation
+* comments describing intent
+* benchmark or experiment descriptions
 
-Look for domain-specific nouns and relationships in:
+Record the stated purpose.
 
-- database models
-- schemas
-- type definitions
-- API contracts
-- validation rules
-- service names
-- UI labels
-- event names
-- configuration
-- test fixtures
+Do not automatically accept it as proof of implemented purpose.
 
-Determine what these concepts represent in the real-world workflow.
+Documentation may describe:
 
-A domain model is particularly valuable when documentation is weak because recurring entities and relationships often reveal what the system is actually managing.
+* an earlier version
+* an aspirational product
+* a prototype
+* an abandoned direction
+* an incomplete implementation
 
-### Step 5: Trace a representative end-to-end workflow
+Explicit intent is strong evidence of motivation, but implementation determines whether that intent is reflected in the repository's actual behavior.
 
-Identify at least one important workflow that demonstrates the system's purpose.
+### Step 4: Identify externally meaningful behavior
 
-Trace it from an external entry point through the relevant application layers to its outcome.
+Determine what users or consuming systems can actually do.
+
+For applications, inspect:
+
+* pages
+* forms
+* routes
+* workflows
+* API endpoints
+* commands
+* outputs
+
+For libraries or developer tools, inspect:
+
+* public APIs
+* commands
+* documented usage
+* integration points
+* example applications
+
+For experiments, inspect:
+
+* inputs
+* experimental variables
+* execution paths
+* evaluation logic
+* outputs
+* measurements
+
+Ask:
+
+**"What meaningful capability does this repository make possible?"**
+
+Do not mistake isolated utility functions for the repository's primary purpose.
+
+### Step 5: Identify the problem, need, or objective behind the behavior
+
+For each significant capability, ask why it exists.
+
+Move beyond implementation language.
 
 For example:
 
-user action → API/UI entry point → business/service logic → data or external integration → resulting output.
+"Uploads documents"
 
-Do not invent a workflow if the repository does not expose enough evidence to trace one.
+is a capability.
 
-The workflow should explain why the major components exist, not merely how they call each other.
+Ask:
 
-### Step 6: Cross-check implementation against intent
+"Why does the intended audience need documents uploaded?"
 
-Compare explicit documentation with implementation evidence.
+"Automates deployment"
+
+is a capability.
+
+Ask:
+
+"What operational or technical burden does deployment automation reduce?"
+
+"Demonstrates a model"
+
+is a capability.
+
+Ask:
+
+"What capability or hypothesis is the demonstration intended to reveal?"
+
+Continue tracing until reaching the highest-level motivation that repository evidence can support.
+
+Do not invent motivations beyond the evidence.
+
+### Step 6: Identify beneficiaries and audiences
+
+Determine who benefits from the software.
+
+Possible beneficiaries include:
+
+* end users
+* customers
+* employees
+* administrators
+* developers
+* operators
+* researchers
+* students
+* consuming applications
+* system owners
+
+For enterprise applications, distinguish between:
+
+* the person using the software
+* the organizational unit benefiting from the outcome
+* the enterprise need being served
+
+Do not assume these are the same.
+
+For example, an employee may operate a system while the underlying purpose is regulatory compliance or operational control.
+
+### Step 7: Identify domain concepts and purpose signals
+
+Look for recurring concepts in:
+
+* models
+* schemas
+* APIs
+* UI labels
+* validation
+* services
+* events
+* configuration
+* tests
+* fixtures
+
+Determine what these concepts reveal about the problem domain.
+
+Recurring domain concepts are particularly valuable when documentation is weak.
+
+However, do not treat model names as conclusive.
+
+Verify their actual relationships and usage.
+
+### Step 8: Trace a representative meaningful workflow
+
+Identify at least one workflow that demonstrates why the major components exist.
+
+Trace:
+
+external trigger
+→ meaningful action
+→ application behavior
+→ resulting outcome
+
+For an enterprise application, prefer a workflow that connects to an apparent business or operational outcome.
+
+For a technology demonstrator, prefer the workflow that demonstrates the target capability.
+
+For a research repository, prefer the workflow that produces an experiment or evaluation result.
+
+The workflow should explain purpose, not merely control flow.
+
+### Step 9: Identify the "without this software" condition
+
+Ask what need remains if the repository does not exist.
+
+Possible answers include:
+
+* a manual process remains manual
+* a technical capability is unavailable
+* a system cannot integrate with another system
+* an experiment cannot be conveniently performed
+* a technology cannot be practically demonstrated
+* developers must repeatedly solve the same problem
+* an organizational workflow remains unsupported
+
+This question often reveals the motivating need more clearly than a list of features.
+
+Do not invent a pain point merely to make the repository sound commercially important.
+
+### Step 10: Cross-check stated intent against implemented evidence
+
+Compare documentation with:
+
+* actual entry points
+* primary workflows
+* domain models
+* public interfaces
+* tests
+* runtime behavior
+* examples
 
 Look for:
 
-- documented features that have no implementation
-- implemented capabilities absent from documentation
-- placeholder or prototype behavior
-- deprecated or apparently unused functionality
-- multiple competing workflows
-- configuration-dependent behavior
-- integrations that are declared but not actually used
+* documented purpose without implementation support
+* implemented capabilities absent from documentation
+* prototype-only behavior
+* placeholder functionality
+* competing purposes
+* deprecated functionality
+* example code mistaken for the product
+* declared integrations that are not active
 
-When these discrepancies materially affect the business-purpose interpretation, state them explicitly.
+When contradictions materially affect the purpose conclusion, state them explicitly.
 
-### Step 7: Form the business-purpose hypothesis
+### Step 11: Form the purpose hypothesis
 
-Synthesize the evidence into a concise business-purpose hypothesis.
+Construct a concise primary purpose statement.
 
-The hypothesis should identify:
+Use the appropriate conceptual form.
 
-- the problem
-- the apparent users or consumers
-- the principal workflow
-- the resulting business or operational outcome
+For a business application:
 
-Use calibrated language such as "the repository indicates," "the implementation strongly suggests," or "the available evidence does not establish" when appropriate.
+**The repository appears to exist to address [business or operational need] by enabling [core capability or workflow], producing [intended organizational outcome] for [beneficiary].**
 
-Do not use vague phrases such as "this is a platform for..." unless the repository provides enough evidence to explain what the platform actually does.
+For infrastructure or developer software:
+
+**The repository appears to exist to provide [technical capability or abstraction] that enables [users or systems] to [achieve outcome or avoid technical problem].**
+
+For a demonstrator:
+
+**The repository appears primarily intended to demonstrate [technology or capability] by implementing [representative scenario or workflow].**
+
+For research:
+
+**The repository appears intended to investigate or evaluate [question, hypothesis, or approach] through [experimental mechanism].**
+
+For a mixed-purpose repository:
+
+State the primary purpose first and explicitly identify secondary purposes.
+
+### Step 12: Test the hypothesis against the entire repository
+
+Ask:
+
+* Does the major functionality support this purpose?
+* Do the central domain concepts make sense under this interpretation?
+* Do the primary workflows support it?
+* Does the purpose explain why the main components exist?
+* Is a simpler explanation more consistent with the evidence?
+* Is the conclusion dependent on one weak clue?
+* Could the repository instead be a demo, template, experiment, or example?
+
+Revise the hypothesis if the evidence does not hold together.
 
 ## Evidence requirements
 
-A strong business-purpose conclusion should be supported by multiple evidence types where available.
+A strong purpose conclusion should use multiple evidence types where available.
 
 Prefer combinations such as:
 
-- documentation + user-facing workflow
-- API routes + service logic
-- domain models + UI behavior
-- tests + implementation
-- configuration + integration code
+* documentation + implemented workflow
+* domain concepts + user-facing behavior
+* public API + consuming examples
+* experiment description + evaluation logic
+* tests + implementation
+* configuration + actual integration usage
 
-Do not treat a project name, README tagline, or directory name as sufficient evidence by itself.
+Do not treat any of the following as sufficient evidence by themselves:
 
-For each major conclusion, identify the relevant repository artifacts in the final analysis.
+* repository name
+* technology stack
+* dependency list
+* directory name
+* single model name
+* generic README tagline
+
+For each major conclusion, identify the relevant repository artifacts.
+
+## Certainty classification
+
+Use calibrated conclusions.
+
+**Verified purpose:** Explicitly stated and materially supported by implementation evidence.
+
+**Strongly inferred purpose:** Not directly stated, but strongly supported by connected workflows, domain concepts, interfaces, and implementation.
+
+**Partial purpose:** Some motivation is evident, but the full problem or intended outcome cannot be established.
+
+**Mixed purpose:** Multiple legitimate purposes are supported by evidence.
+
+**Unverified hypothesis:** A plausible interpretation exists, but the evidence is too weak to treat it as established.
+
+**Unknown:** The repository does not provide enough evidence to reconstruct its motivating purpose.
+
+Do not force certainty where the original organizational context has been lost.
 
 ## Anti-patterns and rationalizations
 
-| Rationalization | Required response |
-|---|---|
-| "The README already tells us what it does." | Verify the stated purpose against actual entry points and implementation. |
-| "The repository name is obvious." | Treat the name only as a clue. Find implementation evidence. |
-| "The technology stack tells us the product." | Technology describes implementation, not business purpose. Inspect behavior and domain concepts. |
-| "There are many API endpoints, so the purpose is clear." | Trace representative endpoints and determine what real-world workflow they support. |
-| "The UI labels are enough." | Cross-check the UI with backend behavior and data models. |
-| "The model names clearly reveal the business." | Use them as evidence, but verify their relationships and actual usage. |
-| "We can infer the missing parts because this is a common application type." | Do not substitute industry stereotypes for repository evidence. |
-| "The code is incomplete, so we should fill in the intended purpose." | Describe what can be established and explicitly identify what remains unknown. |
+| Rationalization                                                           | Required response                                                                                                                                  |
+| ------------------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------- |
+| "Every repository has a business purpose."                                | First determine whether the repository is an enterprise application, system tool, experiment, demonstrator, library, prototype, or something else. |
+| "The repository name tells us why it exists."                             | Treat the name as a clue only. Verify purpose through behavior and evidence.                                                                       |
+| "The technology stack tells us the purpose."                              | Technology explains implementation choices, not necessarily motivation.                                                                            |
+| "The README already explains the purpose."                                | Cross-check stated intent against implementation.                                                                                                  |
+| "This looks like a common application, so we know the problem it solves." | Do not substitute industry stereotypes for repository evidence.                                                                                    |
+| "The code is incomplete, so we should infer the finished product."        | Describe what is supported and explicitly identify uncertainty.                                                                                    |
+| "A demo has no real purpose."                                             | Demonstrating or evaluating a technology may itself be the primary purpose.                                                                        |
+| "A library does not have a business purpose."                             | Reconstruct the user, developer, or system need the library exists to address.                                                                     |
+| "The most sophisticated feature must be the purpose."                     | Determine whether it is central to the repository's actual workflow.                                                                               |
+| "The user and the beneficiary are obviously the same."                    | Distinguish operator, consumer, and organizational beneficiary where relevant.                                                                     |
+| "We should infer the company's strategy from the application."            | Reconstruct only the highest-level motivation supported by repository evidence.                                                                    |
+| "Purpose means explaining every feature."                                 | Purpose explains why the important features collectively exist. Features are analyzed separately.                                                  |
 
 ## Red flags
 
-Stop and investigate further when:
+Investigate further when:
 
-- the README and implementation describe different systems
-- multiple unrelated applications exist in one repository
-- the apparent core domain models are unused
-- major routes lead only to placeholder responses
-- configuration suggests optional or alternative implementations
-- dependencies imply capabilities that cannot be traced to runtime usage
-- documentation uses product language that the code does not support
-- the repository appears to be a framework, library, template, or developer tool rather than an end-user application
-- the business purpose can only be stated using generic technology terminology
+* the conclusion only describes technology
+* the conclusion could apply to thousands of unrelated repositories
+* no distinction has been made between purpose and functionality
+* enterprise terminology has been forced onto a technical repository
+* a demo or experiment has been incorrectly treated as a product
+* the repository contains multiple unrelated systems
+* examples have been mistaken for the main application
+* the README and implementation describe different purposes
+* the main domain concepts are unused
+* the apparent core workflow leads only to placeholders
+* the proposed purpose depends on a single weak clue
+* the purpose statement does not explain why the major components exist
+* organizational strategy has been invented without evidence
+* the analysis cannot explain what need or objective would remain without the software
 
 ## Verification gate
 
-Before completing this phase, verify all of the following:
+Before completing this phase, verify:
 
-- The proposed business purpose is supported by concrete repository evidence.
-- At least one representative workflow has been traced where the repository permits it.
-- Apparent users or consumers are supported by evidence rather than guessed.
-- Core domain concepts have been considered.
-- Documentation has been checked against implementation.
-- Important contradictions or implementation gaps are disclosed.
-- Facts, inferences, and unknowns are distinguishable.
-- The conclusion explains the real-world problem and outcome rather than merely describing the software's technical structure.
+* [ ] The repository's likely purpose model has been considered rather than assumed.
+* [ ] Enterprise business need has been used when appropriate but not forced onto other repository types.
+* [ ] The proposed purpose is supported by concrete repository evidence.
+* [ ] Explicit statements of intent have been checked against implementation where possible.
+* [ ] At least one representative meaningful workflow has been traced where the repository permits it.
+* [ ] The apparent beneficiaries, users, consumers, or audiences are supported by evidence.
+* [ ] Core domain concepts or equivalent technical concepts have been considered.
+* [ ] The analysis distinguishes capability from motivating need or objective.
+* [ ] The analysis considers what problem, limitation, opportunity, or objective would exist without the software.
+* [ ] Multiple purposes are acknowledged where evidence supports them.
+* [ ] Important contradictions and implementation gaps are disclosed.
+* [ ] Facts, inferences, hypotheses, and unknowns are distinguishable.
+* [ ] The conclusion does not rely primarily on repository naming or technology terminology.
+* [ ] The resulting purpose provides a meaningful conceptual starting point for the Business Requirements phase.
 
-If these conditions cannot be satisfied because the repository is incomplete, state the limitation explicitly.
+If these conditions cannot be satisfied because the repository is incomplete or lacks historical context, state the limitation explicitly.
 
 ## Output expectations
 
-Return a professional dossier-quality Business Purpose analysis.
+Return a professional, concise but insightful Business Purpose analysis.
 
-The result should synthesize the evidence into a coherent explanation rather than reproduce the investigation process.
+Do not reproduce the investigation process.
 
-Include the strongest supporting evidence and distinguish verified facts from inference.
+Synthesize the evidence into a coherent explanation of the repository's motivating purpose.
 
-Do not discuss technologies in depth unless they materially help establish business purpose. Detailed technology analysis belongs to later phases.
+Begin by identifying the most appropriate purpose model:
 
-Do not propose improvements, redesigns, or future features in this phase. Those belong to the Future Directions phase.
+* enterprise/business need
+* operational need
+* technical capability
+* infrastructure enablement
+* developer enablement
+* prototype
+* research
+* experimentation
+* technology demonstration
+* education
+* reference implementation
+* mixed or unknown purpose
 
-The final conclusion should answer, as precisely as the evidence permits:
+Then explain the strongest evidence-backed answer to:
 
-"What does this software exist to accomplish, for whom, and through what fundamental workflow or outcome?"
+**"Why was this software created?"**
+
+For an enterprise-oriented application, clearly identify the apparent business or organizational need and the outcome the application is intended to enable.
+
+For other repository types, identify the equivalent motivating objective without artificially translating it into business language.
+
+Explain the relationship between:
+
+**motivating need or objective
+→ core capability or workflow
+→ intended outcome
+→ beneficiary or audience**
+
+Include important uncertainty and contradictions.
+
+Do not analyze technology in depth unless it materially helps establish purpose.
+
+Do not provide detailed requirements, architecture, design, implementation mechanics, testing analysis, or future recommendations in this phase.
+
+Those belong to later phases.
+
+The completed analysis should allow a reader to answer:
+
+**"What motivating need, problem, opportunity, objective, or purpose caused this software to exist, who or what benefits from it, and what fundamental outcome is it intended to make possible?"**

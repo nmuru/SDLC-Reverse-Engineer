@@ -126,7 +126,9 @@ const phaseResultMap: Record<Phase["id"], keyof AnalysisResult> = {
   "future-directions": "future_directions",
 };
 
-const API_BASE_URL = "https://reverse-engineer-sdlc.onrender.com";
+// const API_BASE_URL = "https://reverse-engineer-sdlc.onrender.com";
+
+const API_BASE_URL = "http://localhost:8000";
 
    
 

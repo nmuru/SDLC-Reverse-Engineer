@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+<title>business-purpose</title>
+
+<style>
+body {
+    margin: 0;
+    background: #f6f7f9;
+    color: #1f2937;
+    font-family: Arial, Helvetica, sans-serif;
+}
+
+main {
+    max-width: 900px;
+    margin: 0 auto;
+    padding: 40px 28px;
+    background: #fff;
+    min-height: 100vh;
+}
+
+h1, h2, h3, h4, h5, h6 {
+    line-height: 1.25;
+    margin-top: 1.5em;
+}
+
+p, li {
+    line-height: 1.6;
+}
+
+table {
+    border-collapse: collapse;
+    margin: 18px 0;
+    width: 100%;
+}
+
+td {
+    border: 1px solid #d1d5db;
+    padding: 8px;
+    text-align: left;
+    vertical-align: top;
+}
+
+pre {
+    background: #111827;
+    color: #f9fafb;
+    overflow: auto;
+    padding: 16px;
+    border-radius: 8px;
+}
+
+code {
+    background: #eef0f3;
+    padding: 2px 4px;
+    border-radius: 3px;
+}
+
+pre code {
+    background: transparent;
+    padding: 0;
+}
+
+a {
+    color: #2563eb;
+}
+
+.mermaid {
+    overflow-x: auto;
+    margin: 24px 0;
+    padding: 12px;
+}
+</style>
+
+<script type="module">
+import mermaid from
+    "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+mermaid.initialize({
+    startOnLoad: true,
+    securityLevel: "loose",
+    theme: "default",
+});
+</script>
+
+</head>
+
+<body>
+<main>
+<h1>Business Purpose</h1>
+<h2>Primary Purpose</h2>
+<p>This repository serves as an <strong>educational demonstration system</strong> for teaching continuous delivery practices for cloud-native Java applications. It is not a production application but rather a curated collection of microservices and deployment configurations designed to illustrate modern DevOps patterns.</p>
+<h2>Problem Solved</h2>
+<p>The repository addresses the challenge of <strong>Java teams transitioning to cloud-native development</strong> while maintaining application stability during accelerated delivery cycles. Specifically, it demonstrates how to integrate popular DevOps tools (Maven, Jenkins, Docker, Kustomize, Argo CD) to automate the release process for Java applications.</p>
+<h2>Target Audience</h2>
+<p>The primary users are <strong>Java developers and DevOps practitioners</strong> who want to:</p>
+<ul>
+<li>Learn how to establish comprehensive continuous delivery pipelines</li>
+<li>Accelerate their release cadence without compromising application stability</li>
+<li>Understand modern cloud-native deployment patterns</li>
+<li>Gain hands-on experience with industry-standard tools and technologies</li>
+</ul>
+<p>The system is also used by <strong>LinkedIn Learning course students</strong> following the &quot;Continuous Delivery for Cloud Native Java Apps&quot; course created by Kevin Bowersox.</p>
+<h2>Core Workflow Enabled</h2>
+<p>The repository enables <strong>learning through implementation</strong> of continuous delivery patterns:</p>
+<p>1. <strong>Development</strong> → <strong>Build &amp; Package</strong> → <strong>Deploy &amp; Release</strong> workflow demonstration</p>
+<p>2. <strong>Microservice architecture</strong> implementation with interconnected services (Room, Guest, Booking, WebApp)</p>
+<p>3. <strong>Multi-environment deployment</strong> configurations showing progression from local to production</p>
+<p>4. <strong>Version control branching strategy</strong> aligned with course curriculum progression</p>
+<h2>Business Outcome Delivered</h2>
+<p>The software provides <strong>practical, production-ready examples</strong> that students can:</p>
+<ul>
+<li>Copy and adapt for their own projects</li>
+<li>Use to understand DevOps tooling integration patterns</li>
+<li>Apply to accelerate their organization&#x27;s delivery capabilities</li>
+<li>Modify and extend as they learn more advanced concepts</li>
+</ul>
+<h2>Key Domain Concepts</h2>
+<ul>
+<li><strong>Hotel booking system</strong>: Room inventory, guest management, booking operations (demonstrates microservices interaction)</li>
+<li><strong>Continuous integration/continuous delivery</strong>: Automated build, test, and deployment pipelines</li>
+<li><strong>Infrastructure as code</strong>: Kustomize configurations and deployment overlays</li>
+<li><strong>Version control workflow</strong>: Branching strategy corresponding to course chapters</li>
+</ul>
+<h2>Evidence-Based Business Purpose</h2>
+<h3>Explicit Documentation Support</h3>
+<p>The README explicitly states: &quot;This is the repository for the LinkedIn Learning course Continuous Delivery for Cloud Native Java Apps&quot; and &quot;If you&#x27;re a Java developer looking for a toolset that will accelerate your release cadence without sacrificing your application&#x27;s stability, this is the course for you.&quot;</p>
+<h3>Implementation Evidence</h3>
+<ul>
+<li>Repository contains <strong>multiple microservices</strong> each with Spring Boot applications</li>
+<li><strong>Deployment configurations</strong> in the deploy/ directory demonstrate production-ready patterns</li>
+<li><strong>Course-structured branching</strong> (chapters/movies with beginning/end states)</li>
+<li><strong>Lab environment setup</strong> through Vagrant indicates educational purpose</li>
+</ul>
+<h3>Supporting Artifacts</h3>
+<ul>
+<li><strong>Lab setup scripts</strong> and Vagrantfile for reproducible learning environments</li>
+<li><strong>Setup scripts</strong> for creating isolated service repositories</li>
+<li><strong>Multiple service implementations</strong> showing architecture patterns</li>
+<li><strong>Test implementations</strong> validating the concepts</li>
+</ul>
+<h2>Purpose Confirmation</h2>
+<p>The repository&#x27;s business purpose is <strong>clearly established through both documentation and implementation</strong>. It exists to <strong>teach continuous delivery for cloud-native Java applications</strong> by providing concrete examples that demonstrate real-world DevOps practices, tooling integration, and deployment automation.</p>
+<p>The educational nature is reinforced by the course structure, lab environment setup, and the explicit LinkedIn Learning context. While the microservices implement a functional hotel booking system, their primary role is to <strong>serve as teaching examples</strong> for continuous delivery methodologies rather than to operate as a standalone commercial product.</p>
+<h2>Limitations of Evidence</h2>
+<p>The repository does not include:</p>
+<ul>
+<li>End-to-end automation scripts for complete pipeline implementation</li>
+<li>Cloud provider-specific integrations beyond Kubernetes patterns</li>
+<li>Advanced security or monitoring implementations</li>
+</ul>
+<p>These limitations reflect the <strong>educational scope</strong> of the repository, which focuses on demonstrating foundational continuous delivery concepts rather than providing a complete enterprise solution.</p>
+</main>
+</body>
+</html>

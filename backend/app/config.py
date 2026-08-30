@@ -7,6 +7,7 @@ class Settings(BaseSettings):
     ollama_model: str = "stealth/ox-alpha"
     openrouter_api_key: str | None = None
     allowed_origins: str = "http://localhost:3000"
+    #allowed_origins: str = "https://sdlc-reverse-engineer.vercel.app"
     phases_per_batch: int = 3
     # number_of_batches is derived from selected phases and phases_per_batch.
     # number_of_batches: int = 1
