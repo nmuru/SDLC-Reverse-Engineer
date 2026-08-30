@@ -14,6 +14,9 @@ class Settings(BaseSettings):
     batch_mode: str = "parallel"
     analysis_results_dir: str = "output-content"
     pipeline_smoke_test: bool = False
+    resource_diagnostics_enabled: bool = False
+    resource_diagnostics_interval_seconds: float = 2.0
+    resource_diagnostics_dir: str = "resource-diagnostics"
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
