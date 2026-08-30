@@ -251,7 +251,11 @@ def run_phase_agent(
         prompt = "Run the pipeline connectivity smoke test."
         agent_name = SMOKE_AGENT_NAME
         _log_smoke_workspace(workspace, agent_name)
-    else:
+
+    # TEMPORARY DIAGNOSTIC: normal production path deliberately disabled.
+    # It is retained below, but unreachable, so every invocation must use the
+    # smoke-test prompt and cannot construct a phase-specific prompt.
+    elif False:
         _copy_normal_project_instructions(workspace)
         _write_dynamic_opencode_config(workspace, repo_url, provider, model)
         _write_handoff(workspace, previous_output)
