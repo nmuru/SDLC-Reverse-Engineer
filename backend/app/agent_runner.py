@@ -1,10 +1,9 @@
-"""
-OpenCode phase runner.
+"""OpenCode phase runner.
 
-The runner creates only a lightweight project workspace. In normal mode the
+The runner creates a lightweight temporary project workspace. In normal mode the
 analysis agent receives the target Git repository as an OpenCode reference. In
-pipeline smoke-test mode it uses an isolated no-tool agent and sends only a
-minimal request through the same OpenCode and model-provider path.
+pipeline smoke-test mode it uses an isolated agent and records the exact
+workspace composition used for diagnostics.
 """
 
 import json
@@ -71,7 +70,7 @@ def _copy_normal_project_instructions(workspace: Path) -> None:
 
 
 def _copy_smoke_test_agent(workspace: Path) -> None:
-    """Copy only the isolated smoke-test agent into a sterile workspace."""
+    """Copy only the smoke-test agent into a sterile workspace."""
     source_agent = OPENCODE_SOURCE / "agents" / f"{SMOKE_AGENT_NAME}.md"
     if not source_agent.is_file():
         raise AgentRunnerError(
@@ -145,6 +144,33 @@ def _write_smoke_test_opencode_config(
         json.dumps(config, indent=2) + "\n",
         encoding="utf-8",
     )
+
+
+def _log_smoke_workspace(workspace: Path, agent_name: str) -> None:
+    """Log the exact smoke-test workspace composition before OpenCode starts."""
+    files = []
+    for path in sorted(workspace.rglob("*")):
+        if path.is_file():
+            files.append(str(path.relative_to(workspace)))
+
+    config_path = workspace / "opencode.json"
+    config_text = "<missing>"
+    if config_path.is_file():
+        config_text = config_path.read_text(encoding="utf-8")
+
+    agents_md_path = workspace / "AGENTS.md"
+    diagnostic = (
+        "\n===== PIPELINE SMOKE-TEST WORKSPACE ====="
+        f"\nworkspace: {workspace}"
+        f"\nagent: {agent_name}"
+        f"\nAGENTS.md present: {agents_md_path.exists()}"
+        "\nfiles:"
+        + "".join(f"\n  - {file}" for file in files)
+        + f"\nopencode.json:\n{config_text}"
+        + "\n===== END PIPELINE SMOKE-TEST WORKSPACE =====\n"
+    )
+    print(diagnostic, flush=True)
+    logger.warning(diagnostic)
 
 
 def _opencode_model_identifier(provider: str, model: str) -> str:
@@ -224,6 +250,7 @@ def run_phase_agent(
         _write_smoke_test_opencode_config(workspace, provider, model)
         prompt = "Run the pipeline connectivity smoke test."
         agent_name = SMOKE_AGENT_NAME
+        _log_smoke_workspace(workspace, agent_name)
     else:
         _copy_normal_project_instructions(workspace)
         _write_dynamic_opencode_config(workspace, repo_url, provider, model)
