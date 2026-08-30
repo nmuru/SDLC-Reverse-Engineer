@@ -13,6 +13,7 @@ class Settings(BaseSettings):
     # number_of_batches: int = 1
     batch_mode: str = "parallel"
     analysis_results_dir: str = "output-content"
+    pipeline_smoke_test: bool = False
 
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8")
 
