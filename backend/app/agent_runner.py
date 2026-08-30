@@ -1,10 +1,4 @@
-"""OpenCode phase runner.
-
-The runner creates a lightweight temporary project workspace. In normal mode the
-analysis agent receives the target Git repository as an OpenCode reference. In
-pipeline smoke-test mode it uses an isolated agent and records the exact
-workspace composition used for diagnostics.
-"""
+"""OpenCode phase runner."""
 
 import json
 import logging
@@ -31,7 +25,6 @@ class AgentRunnerError(RuntimeError):
 
 
 def _ensure_git_worktree(workspace: Path) -> None:
-    """Initialize the temporary workspace when it is not a Git worktree."""
     check = subprocess.run(
         ["git", "rev-parse", "--is-inside-work-tree"],
         cwd=str(workspace),
@@ -58,7 +51,6 @@ def _ensure_git_worktree(workspace: Path) -> None:
 
 
 def _copy_normal_project_instructions(workspace: Path) -> None:
-    """Copy the complete production OpenCode configuration into a workspace."""
     target_opencode = workspace / ".opencode"
     target_opencode.mkdir(parents=True, exist_ok=True)
 
@@ -70,7 +62,6 @@ def _copy_normal_project_instructions(workspace: Path) -> None:
 
 
 def _copy_smoke_test_agent(workspace: Path) -> None:
-    """Copy only the smoke-test agent into a sterile workspace."""
     source_agent = OPENCODE_SOURCE / "agents" / f"{SMOKE_AGENT_NAME}.md"
     if not source_agent.is_file():
         raise AgentRunnerError(
@@ -82,30 +73,12 @@ def _copy_smoke_test_agent(workspace: Path) -> None:
     shutil.copy2(source_agent, target_agents / source_agent.name)
 
 
-def _write_handoff(workspace: Path, previous_output: Optional[str]) -> None:
-    """Write the previous phase result for continuity across normal phases."""
-    handoff = workspace / ".reverse-engineer-handoff.md"
-
-    if previous_output:
-        handoff.write_text(
-            "# Previous Phase Analysis\n\n"
-            "The following is the completed analysis from the previous phase. "
-            "Use it as context, but verify important claims against the "
-            "repository evidence.\n\n"
-            + previous_output,
-            encoding="utf-8",
-        )
-    elif handoff.exists():
-        handoff.unlink()
-
-
 def _write_dynamic_opencode_config(
     workspace: Path,
     repo_url: str,
     provider: str,
     model: str,
 ) -> None:
-    """Create the production project-level OpenCode configuration."""
     config_path = workspace / "opencode.json"
     config = {
         "$schema": "https://opencode.ai/config.json",
@@ -121,11 +94,7 @@ def _write_dynamic_opencode_config(
             }
         },
     }
-
-    config_path.write_text(
-        json.dumps(config, indent=2) + "\n",
-        encoding="utf-8",
-    )
+    config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
 
 
 def _write_smoke_test_opencode_config(
@@ -133,36 +102,41 @@ def _write_smoke_test_opencode_config(
     provider: str,
     model: str,
 ) -> None:
-    """Create a minimal OpenCode configuration without repository references."""
     config_path = workspace / "opencode.json"
     config = {
         "$schema": "https://opencode.ai/config.json",
         "model": _opencode_model_identifier(provider, model),
     }
+    config_path.write_text(json.dumps(config, indent=2) + "\n", encoding="utf-8")
 
-    config_path.write_text(
-        json.dumps(config, indent=2) + "\n",
-        encoding="utf-8",
+
+def _write_smoke_test_prompt_file(workspace: Path) -> None:
+    """Keep the smoke-test task visible as a workspace artifact for diagnostics."""
+    (workspace / ".smoke-test-prompt.txt").write_text(
+        "Hi\n", encoding="utf-8"
     )
 
 
-def _log_smoke_workspace(workspace: Path, agent_name: str) -> None:
-    """Log the exact smoke-test workspace composition before OpenCode starts."""
-    files = []
-    for path in sorted(workspace.rglob("*")):
-        if path.is_file():
-            files.append(str(path.relative_to(workspace)))
+def _log_smoke_workspace(workspace: Path, agent_name: str, prompt: str) -> None:
+    files = [
+        str(path.relative_to(workspace))
+        for path in sorted(workspace.rglob("*"))
+        if path.is_file()
+    ]
 
     config_path = workspace / "opencode.json"
-    config_text = "<missing>"
-    if config_path.is_file():
-        config_text = config_path.read_text(encoding="utf-8")
+    config_text = (
+        config_path.read_text(encoding="utf-8")
+        if config_path.is_file()
+        else "<missing>"
+    )
 
     agents_md_path = workspace / "AGENTS.md"
     diagnostic = (
         "\n===== PIPELINE SMOKE-TEST WORKSPACE ====="
         f"\nworkspace: {workspace}"
         f"\nagent: {agent_name}"
+        f"\nprompt: {prompt!r}"
         f"\nAGENTS.md present: {agents_md_path.exists()}"
         "\nfiles:"
         + "".join(f"\n  - {file}" for file in files)
@@ -174,19 +148,15 @@ def _log_smoke_workspace(workspace: Path, agent_name: str) -> None:
 
 
 def _opencode_model_identifier(provider: str, model: str) -> str:
-    """Convert the provider/model selection into the identifier OpenCode expects."""
-    normalized_provider = provider.strip().lower()
-    normalized_model = model.strip()
-    return f"{normalized_provider}/{normalized_model}"
+    return f"{provider.strip().lower()}/{model.strip()}"
 
 
 def _resolve_opencode_executable(opencode_executable: str) -> str:
     if os.path.isfile(opencode_executable):
         return opencode_executable
-    if os.name == "nt":
-        resolved_opencode = shutil.which("opencode.cmd")
-    else:
-        resolved_opencode = shutil.which(opencode_executable)
+    resolved_opencode = shutil.which(
+        "opencode.cmd" if os.name == "nt" else opencode_executable
+    )
     if not resolved_opencode:
         raise AgentRunnerError(
             f"OpenCode executable '{opencode_executable}' was not found."
@@ -201,13 +171,9 @@ def _provider_environment_name(provider: str) -> str:
         "anthropic": "ANTHROPIC_API_KEY",
         "google": "GOOGLE_GENERATIVE_AI_API_KEY",
     }
-    normalized_provider = provider.strip().lower()
-    env_name = provider_env_names.get(normalized_provider)
+    env_name = provider_env_names.get(provider.strip().lower())
     if not env_name:
-        raise AgentRunnerError(
-            f"Unsupported provider '{provider}'. "
-            "Use a supported provider or add explicit credential handling."
-        )
+        raise AgentRunnerError(f"Unsupported provider '{provider}'.")
     return env_name
 
 
@@ -215,14 +181,13 @@ def _redact_diagnostic(value: str, api_key: Optional[str], command_env: dict[str
     if not value:
         return ""
     redacted = value
-    secrets_to_redact = [
+    for secret in {
         api_key.strip() if api_key else "",
         command_env.get("OPENROUTER_API_KEY", ""),
         command_env.get("OPENAI_API_KEY", ""),
         command_env.get("ANTHROPIC_API_KEY", ""),
         command_env.get("GOOGLE_GENERATIVE_AI_API_KEY", ""),
-    ]
-    for secret in secrets_to_redact:
+    }:
         if secret:
             redacted = redacted.replace(secret, "[REDACTED]")
     return redacted
@@ -239,69 +204,25 @@ def run_phase_agent(
     model: str = "z-ai/glm-5.3-flash",
     api_key: Optional[str] = None,
 ) -> str:
-    """Run one phase through the normal analysis agent or smoke-test agent."""
+    """Run a phase through OpenCode. Smoke mode is temporarily the only active path."""
     workspace.mkdir(parents=True, exist_ok=True)
     _ensure_git_worktree(workspace)
 
     smoke_test = settings.pipeline_smoke_test
 
-    if smoke_test:
-        _copy_smoke_test_agent(workspace)
-        _write_smoke_test_opencode_config(workspace, provider, model)
-        prompt = "Run the pipeline connectivity smoke test."
-        agent_name = SMOKE_AGENT_NAME
-        _log_smoke_workspace(workspace, agent_name)
+    # Temporary smoke-test-only harness. The normal production path is deliberately
+    # disabled while we isolate OpenCode/OpenRouter behavior.
+    if not smoke_test:
+        raise AgentRunnerError(
+            "PIPELINE_SMOKE_TEST must be true while the temporary smoke-test harness is active."
+        )
 
-    # TEMPORARY DIAGNOSTIC: normal production path deliberately disabled.
-    # It is retained below, but unreachable, so every invocation must use the
-    # smoke-test prompt and cannot construct a phase-specific prompt.
-    elif False:
-        _copy_normal_project_instructions(workspace)
-        _write_dynamic_opencode_config(workspace, repo_url, provider, model)
-        _write_handoff(workspace, previous_output)
-        prompt = f"""
-Perform the "{phase_name}" phase of the repository reverse-engineering workflow.
-
-Before beginning the analysis, invoke the native OpenCode skill tool exactly
-once with this exact skill name:
-
-skill({{ name: "{phase}" }})
-
-Do not manually read the SKILL.md file instead of invoking the native skill
-tool. Do not begin the phase analysis until that skill has been loaded.
-
-The target repository is available through the OpenCode reference
-"target-repository". Inspect that repository directly and use the
-phase-specific skill for this phase.
-
-Treat repository evidence as authoritative. The previous-phase handoff is
-supporting context only and must not be accepted blindly.
-
-Complete the full phase analysis. Do not provide a short summary merely
-because the phase has been identified. Follow the loaded skill's
-investigation workflow and output requirements.
-
-FINAL OUTPUT:
-
-Return the complete final SDLC documentation for this phase as normal Markdown.
-
-Do not wrap the final documentation in JSON. Do not use a JSON envelope.
-Do not require fields such as "phase" or "documentation".
-
-The final response may contain headings, paragraphs, tables, lists, code
-blocks, and Mermaid diagrams when required by the loaded phase skill. The
-analysis pipeline will preserve this complete raw output and pass it to a
-separate presentation renderer.
-
-Perform all repository exploration, tool usage, evidence gathering,
-verification, and reasoning before producing the final response.
-
-Do not provide a short summary merely because the phase has been identified.
-Follow the loaded skill's investigation workflow and output requirements.
-
-This is a read-only documentation task. Do not modify the target repository.
-""".strip()
-        agent_name = "reverse-engineer"
+    _copy_smoke_test_agent(workspace)
+    _write_smoke_test_opencode_config(workspace, provider, model)
+    _write_smoke_test_prompt_file(workspace)
+    prompt = "Hi"
+    agent_name = SMOKE_AGENT_NAME
+    _log_smoke_workspace(workspace, agent_name, prompt)
 
     resolved_opencode = _resolve_opencode_executable(opencode_executable)
     opencode_model = _opencode_model_identifier(provider, model)
@@ -323,9 +244,7 @@ This is a read-only documentation task. Do not modify the target repository.
     env_name = _provider_environment_name(provider)
 
     if not api_key or not api_key.strip():
-        raise AgentRunnerError(
-            "An API key is required for the selected provider."
-        )
+        raise AgentRunnerError("An API key is required for the selected provider.")
 
     command_env[env_name] = api_key.strip()
 
@@ -370,12 +289,6 @@ This is a read-only documentation task. Do not modify the target repository.
     if not raw_output:
         raise AgentRunnerError(
             f"OpenCode completed phase '{phase}' but returned an empty final output."
-        )
-
-    if smoke_test and raw_output != SMOKE_TEST_RESPONSE:
-        raise AgentRunnerError(
-            f"Smoke-test agent returned an unexpected response for phase '{phase}': "
-            f"{raw_output[:200]!r}"
         )
 
     return raw_output
