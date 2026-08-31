@@ -63,7 +63,8 @@ def analyze(request: AnalyzeRequest) -> StreamingResponse:
 
     def run_analysis() -> None:
         api_key = request.api_key or settings.openrouter_api_key
-        if request.provider.strip().lower() != "opencode" and not api_key:
+        smoke_builtin_provider = settings.pipeline_smoke_test and request.provider.strip().lower() == "opencode"
+        if not smoke_builtin_provider and not api_key:
             raise ValueError("An API key is required for the selected provider.")
         try:
             results = analyze_repository(
