@@ -15,7 +15,6 @@ import requests
 from .config import settings
 
 logger = logging.getLogger(__name__)
-
 PROJECT_ROOT = Path(__file__).resolve().parents[1]
 OPENCODE_SOURCE = PROJECT_ROOT / ".opencode"
 AGENTS_SOURCE = PROJECT_ROOT.parent / "AGENTS.md"
@@ -29,15 +28,11 @@ class AgentRunnerError(RuntimeError):
 
 
 def _ensure_git_worktree(workspace: Path) -> None:
-    check = subprocess.run(
-        ["git", "rev-parse", "--is-inside-work-tree"], cwd=str(workspace),
-        capture_output=True, text=True, check=False,
-    )
+    check = subprocess.run(["git", "rev-parse", "--is-inside-work-tree"], cwd=str(workspace), capture_output=True, text=True, check=False)
     if check.returncode == 0 and check.stdout.strip() == "true":
         return
     try:
-        subprocess.run(["git", "init"], cwd=str(workspace), capture_output=True,
-                       text=True, check=True)
+        subprocess.run(["git", "init"], cwd=str(workspace), capture_output=True, text=True, check=True)
     except (OSError, subprocess.CalledProcessError) as exc:
         raise AgentRunnerError(f"Could not initialize temporary Git workspace: {workspace}") from exc
 
@@ -54,9 +49,7 @@ def _copy_smoke_test_agent(workspace: Path) -> None:
 def _opencode_model_identifier(provider: str, model: str) -> str:
     provider_name = provider.strip().lower()
     model_name = model.strip()
-    if model_name.lower().startswith(f"{provider_name}/"):
-        return model_name
-    return f"{provider_name}/{model_name}"
+    return model_name if model_name.lower().startswith(f"{provider_name}/") else f"{provider_name}/{model_name}"
 
 
 def _write_smoke_test_opencode_config(workspace: Path, provider: str, model: str) -> None:
@@ -72,12 +65,7 @@ def _log_smoke_workspace(workspace: Path, agent_name: str, prompt: str) -> None:
     files = [str(path.relative_to(workspace)) for path in sorted(workspace.rglob("*")) if path.is_file()]
     config_path = workspace / "opencode.json"
     config_text = config_path.read_text(encoding="utf-8") if config_path.is_file() else "<missing>"
-    diagnostic = ("\n===== PIPELINE SMOKE-TEST WORKSPACE =====" f"\nworkspace: {workspace}"
-                  f"\nagent: {agent_name}" f"\nprompt: {prompt!r}"
-                  f"\nconfigured PIPELINE_SMOKE_TEST: {settings.pipeline_smoke_test}"
-                  f"\nAGENTS.md present: {(workspace / 'AGENTS.md').exists()}" "\nfiles:"
-                  + "".join(f"\n  - {file}" for file in files) + f"\nopencode.json:\n{config_text}"
-                  + "\n===== END PIPELINE SMOKE-TEST WORKSPACE =====\n")
+    diagnostic = ("\n===== PIPELINE SMOKE-TEST WORKSPACE =====" f"\nworkspace: {workspace}" f"\nagent: {agent_name}" f"\nprompt: {prompt!r}" f"\nconfigured PIPELINE_SMOKE_TEST: {settings.pipeline_smoke_test}" f"\nAGENTS.md present: {(workspace / 'AGENTS.md').exists()}" "\nfiles:" + "".join(f"\n  - {file}" for file in files) + f"\nopencode.json:\n{config_text}" + "\n===== END PIPELINE SMOKE-TEST WORKSPACE =====\n")
     print(diagnostic, flush=True)
     logger.warning(diagnostic)
 
@@ -92,8 +80,7 @@ def _resolve_opencode_executable(opencode_executable: str) -> str:
 
 
 def _provider_environment_name(provider: str) -> str:
-    names = {"openrouter": "OPENROUTER_API_KEY", "openai": "OPENAI_API_KEY",
-             "anthropic": "ANTHROPIC_API_KEY", "google": "GOOGLE_GENERATIVE_AI_API_KEY"}
+    names = {"openrouter": "OPENROUTER_API_KEY", "openai": "OPENAI_API_KEY", "anthropic": "ANTHROPIC_API_KEY", "google": "GOOGLE_GENERATIVE_AI_API_KEY"}
     env_name = names.get(provider.strip().lower())
     if not env_name:
         raise AgentRunnerError(f"Unsupported provider '{provider}'.")
@@ -102,9 +89,7 @@ def _provider_environment_name(provider: str) -> str:
 
 def _redact_diagnostic(value: str, api_key: Optional[str], command_env: dict[str, str]) -> str:
     redacted = value or ""
-    for secret in {api_key.strip() if api_key else "", command_env.get("OPENROUTER_API_KEY", ""),
-                   command_env.get("OPENAI_API_KEY", ""), command_env.get("ANTHROPIC_API_KEY", ""),
-                   command_env.get("GOOGLE_GENERATIVE_AI_API_KEY", "")}:
+    for secret in {api_key.strip() if api_key else "", command_env.get("OPENROUTER_API_KEY", ""), command_env.get("OPENAI_API_KEY", ""), command_env.get("ANTHROPIC_API_KEY", ""), command_env.get("GOOGLE_GENERATIVE_AI_API_KEY", "")}:
         if secret:
             redacted = redacted.replace(secret, "[REDACTED]")
     return redacted
@@ -127,14 +112,16 @@ def _server_error_text(response: requests.Response) -> str:
     return response.text.strip()[:4000] or "<empty response body>"
 
 
-def _ensure_opencode_server(*, resolved_executable: str, api_key: str, provider: str) -> str:
+def _ensure_opencode_server(*, resolved_executable: str, api_key: Optional[str], provider: str) -> str:
     global _SERVER_PROCESS
     with _SERVER_LOCK:
-        if _SERVER_PROCESS is not None and _SERVER_PROCESS.poll() is None:
-            if _server_healthcheck(_SERVER_URL):
-                return _SERVER_URL
+        if _server_healthcheck(_SERVER_URL):
+            return _SERVER_URL
         env = os.environ.copy()
-        env[_provider_environment_name(provider)] = api_key.strip()
+        if provider.strip().lower() != "opencode":
+            if not api_key or not api_key.strip():
+                raise AgentRunnerError("An API key is required for the selected provider.")
+            env[_provider_environment_name(provider)] = api_key.strip()
         port = _SERVER_URL.rsplit(":", 1)[-1]
         command = [resolved_executable, "serve", "--hostname", "127.0.0.1", "--port", port]
         try:
@@ -155,27 +142,17 @@ def _ensure_opencode_server(*, resolved_executable: str, api_key: str, provider:
 
 
 def _server_smoke_phase(*, server_url: str, workspace: Path, phase: str, provider: str, model: str, prompt: str) -> str:
-    response = requests.post(
-        f"{server_url}/session",
-        params={"directory": str(workspace.resolve())},
-        json={"title": f"reverse-sdlc-smoke-{phase}"},
-        timeout=15,
-    )
+    response = requests.post(f"{server_url}/session", params={"directory": str(workspace.resolve())}, json={"title": f"reverse-sdlc-smoke-{phase}"}, timeout=15)
     if not response.ok:
         raise AgentRunnerError(f"OpenCode server could not create a session for phase '{phase}': HTTP {response.status_code}: {_server_error_text(response)}")
     session = response.json()
     session_id = session.get("id") or session.get("sessionID")
     if not session_id:
         raise AgentRunnerError(f"OpenCode server did not return a session id for phase '{phase}'.")
-
     try:
         response = requests.post(
             f"{server_url}/session/{session_id}/message",
-            json={
-                "agent": "build" if provider == "opencode" else SMOKE_AGENT_NAME,
-                "model": {"providerID": provider, "modelID": model},
-                "parts": [{"type": "text", "text": prompt}],
-            },
+            json={"agent": "build" if provider == "opencode" else SMOKE_AGENT_NAME, "model": {"providerID": provider, "modelID": model}, "parts": [{"type": "text", "text": prompt}]},
             timeout=300,
         )
         if not response.ok:
@@ -186,7 +163,6 @@ def _server_smoke_phase(*, server_url: str, workspace: Path, phase: str, provide
             except OSError:
                 server_log = "<could not read server log>"
             raise AgentRunnerError(f"OpenCode server failed phase '{phase}': HTTP {response.status_code}; response: {_server_error_text(response)}; server log: {server_log or '<empty>'}")
-
         data = response.json() if response.content else {}
         parts = data.get("parts", []) if isinstance(data, dict) else []
         text = "\n".join(part.get("text", "") for part in parts if isinstance(part, dict) and isinstance(part.get("text"), str)).strip()
@@ -207,11 +183,7 @@ def _server_smoke_phase(*, server_url: str, workspace: Path, phase: str, provide
             pass
 
 
-def run_phase_agent(phase: str, phase_name: str, workspace: Path, repo_url: str,
-                    previous_output: Optional[str] = None,
-                    opencode_executable: str = os.getenv("OPENCODE_EXECUTABLE", "opencode"),
-                    provider: str = "openrouter", model: str = "z-ai/glm-5.3-flash",
-                    api_key: Optional[str] = None) -> str:
+def run_phase_agent(phase: str, phase_name: str, workspace: Path, repo_url: str, previous_output: Optional[str] = None, opencode_executable: str = os.getenv("OPENCODE_EXECUTABLE", "opencode"), provider: str = "openrouter", model: str = "z-ai/glm-5.3-flash", api_key: Optional[str] = None) -> str:
     del repo_url, previous_output, phase_name
     workspace.mkdir(parents=True, exist_ok=True)
     _ensure_git_worktree(workspace)
@@ -221,14 +193,14 @@ def run_phase_agent(phase: str, phase_name: str, workspace: Path, repo_url: str,
     prompt = "Hi"
     _log_smoke_workspace(workspace, SMOKE_AGENT_NAME, prompt)
     resolved_opencode = _resolve_opencode_executable(opencode_executable)
-    if not api_key or not api_key.strip():
-        raise AgentRunnerError("An API key is required for the selected provider.")
     if settings.pipeline_smoke_test:
         try:
             server_url = _ensure_opencode_server(resolved_executable=resolved_opencode, api_key=api_key, provider=SMOKE_SERVER_PROVIDER)
             return _server_smoke_phase(server_url=server_url, workspace=workspace, phase=phase, provider=SMOKE_SERVER_PROVIDER, model=SMOKE_SERVER_MODEL, prompt=prompt)
         except requests.RequestException as exc:
             raise AgentRunnerError(f"OpenCode server request failed during phase '{phase}': {exc}") from exc
+    if not api_key or not api_key.strip():
+        raise AgentRunnerError("An API key is required for the selected provider.")
     env = os.environ.copy()
     env[_provider_environment_name(provider)] = api_key.strip()
     opencode_model = _opencode_model_identifier(provider, model)
