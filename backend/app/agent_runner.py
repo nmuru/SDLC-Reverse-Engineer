@@ -108,7 +108,9 @@ def _redact_diagnostic(value: str, api_key: Optional[str], command_env: dict[str
     return redacted
 
 
-_SERVER_URL = os.getenv("OPENCODE_SERVER_URL", "http://127.0.0.1:4096").rstrip("/")
+# Use a dedicated port so a manually started OpenCode server cannot silently be
+# reused without the API-key environment supplied by this backend process.
+_SERVER_URL = os.getenv("OPENCODE_SERVER_URL", "http://127.0.0.1:4097").rstrip("/")
 _SERVER_LOCK = threading.Lock()
 _SERVER_PROCESS: Optional[subprocess.Popen] = None
 _SERVER_STDERR_PATH = PROJECT_ROOT / "opencode-server-stderr.log"
@@ -128,14 +130,9 @@ def _server_error_text(response: requests.Response) -> str:
 def _ensure_opencode_server(*, resolved_executable: str, api_key: str, provider: str) -> str:
     global _SERVER_PROCESS
     with _SERVER_LOCK:
-        if _server_healthcheck(_SERVER_URL):
-            return _SERVER_URL
         if _SERVER_PROCESS is not None and _SERVER_PROCESS.poll() is None:
-            deadline = time.monotonic() + 15
-            while time.monotonic() < deadline:
-                if _server_healthcheck(_SERVER_URL):
-                    return _SERVER_URL
-                time.sleep(0.25)
+            if _server_healthcheck(_SERVER_URL):
+                return _SERVER_URL
         env = os.environ.copy()
         env[_provider_environment_name(provider)] = api_key.strip()
         port = _SERVER_URL.rsplit(":", 1)[-1]
@@ -175,9 +172,10 @@ def _server_smoke_phase(*, server_url: str, workspace: Path, phase: str, provide
     try:
         response = requests.post(
             f"{server_url}/session/{session_id}/message",
+            params={"directory": str(workspace.resolve())},
             json={
                 "agent": SMOKE_AGENT_NAME,
-                "model": {"providerID": provider_id, "modelID": model_id},
+                "model": {"providerID": provider_id, "model": model_id},
                 "parts": [{"type": "text", "text": prompt}],
             },
             timeout=300,
@@ -206,7 +204,7 @@ def _server_smoke_phase(*, server_url: str, workspace: Path, phase: str, provide
         return text
     finally:
         try:
-            requests.delete(f"{server_url}/session/{session_id}", timeout=10)
+            requests.delete(f"{server_url}/session/{session_id}", params={"directory": str(workspace.resolve())}, timeout=10)
         except requests.RequestException:
             pass
 
