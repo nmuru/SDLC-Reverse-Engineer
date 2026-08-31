@@ -20,6 +20,8 @@ PROJECT_ROOT = Path(__file__).resolve().parents[1]
 OPENCODE_SOURCE = PROJECT_ROOT / ".opencode"
 AGENTS_SOURCE = PROJECT_ROOT.parent / "AGENTS.md"
 SMOKE_AGENT_NAME = "pipeline-smoke-test"
+SMOKE_SERVER_PROVIDER = os.getenv("OPENCODE_SMOKE_PROVIDER", "opencode")
+SMOKE_SERVER_MODEL = os.getenv("OPENCODE_SMOKE_MODEL", "muse-spark-1.2-contributor-free")
 
 
 class AgentRunnerError(RuntimeError):
@@ -108,8 +110,6 @@ def _redact_diagnostic(value: str, api_key: Optional[str], command_env: dict[str
     return redacted
 
 
-# Use a dedicated port so a manually started OpenCode server cannot silently be
-# reused without the API-key environment supplied by this backend process.
 _SERVER_URL = os.getenv("OPENCODE_SERVER_URL", "http://127.0.0.1:4097").rstrip("/")
 _SERVER_LOCK = threading.Lock()
 _SERVER_PROCESS: Optional[subprocess.Popen] = None
@@ -168,14 +168,12 @@ def _server_smoke_phase(*, server_url: str, workspace: Path, phase: str, provide
     if not session_id:
         raise AgentRunnerError(f"OpenCode server did not return a session id for phase '{phase}'.")
 
-    provider_id, model_id = model.split("/", 1)
     try:
         response = requests.post(
             f"{server_url}/session/{session_id}/message",
-            params={"directory": str(workspace.resolve())},
             json={
-                "agent": SMOKE_AGENT_NAME,
-                "model": {"providerID": provider_id, "model": model_id},
+                "agent": "build" if provider == "opencode" else SMOKE_AGENT_NAME,
+                "model": {"providerID": provider, "modelID": model},
                 "parts": [{"type": "text", "text": prompt}],
             },
             timeout=300,
@@ -226,10 +224,9 @@ def run_phase_agent(phase: str, phase_name: str, workspace: Path, repo_url: str,
     if not api_key or not api_key.strip():
         raise AgentRunnerError("An API key is required for the selected provider.")
     if settings.pipeline_smoke_test:
-        opencode_model = _opencode_model_identifier(provider, model)
         try:
-            server_url = _ensure_opencode_server(resolved_executable=resolved_opencode, api_key=api_key, provider=provider)
-            return _server_smoke_phase(server_url=server_url, workspace=workspace, phase=phase, provider=provider, model=opencode_model, prompt=prompt)
+            server_url = _ensure_opencode_server(resolved_executable=resolved_opencode, api_key=api_key, provider=SMOKE_SERVER_PROVIDER)
+            return _server_smoke_phase(server_url=server_url, workspace=workspace, phase=phase, provider=SMOKE_SERVER_PROVIDER, model=SMOKE_SERVER_MODEL, prompt=prompt)
         except requests.RequestException as exc:
             raise AgentRunnerError(f"OpenCode server request failed during phase '{phase}': {exc}") from exc
     env = os.environ.copy()
