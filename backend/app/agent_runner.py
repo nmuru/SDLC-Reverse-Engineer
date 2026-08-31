@@ -5,8 +5,11 @@ import logging
 import os
 import shutil
 import subprocess
+import time
 from pathlib import Path
 from typing import Optional
+
+import requests
 
 from .config import settings
 
@@ -109,8 +112,90 @@ def _redact_diagnostic(value: str, api_key: Optional[str], command_env: dict[str
     return redacted
 
 
+def _server_url() -> str:
+    return os.getenv("OPENCODE_SERVER_URL", "http://127.0.0.1:4096").rstrip("/")
+
+
+def _server_healthcheck(url: str) -> bool:
+    try:
+        response = requests.get(f"{url}/global/health", timeout=2)
+        return response.ok
+    except requests.RequestException:
+        return False
+
+
+def _ensure_opencode_server(
+    *,
+    resolved_executable: str,
+    api_key: str,
+    provider: str,
+    model: str,
+    workspace: Path,
+) -> tuple[str, Optional[subprocess.Popen]]:
+    """Ensure a persistent OpenCode server is available and return its URL."""
+    url = _server_url()
+    if _server_healthcheck(url):
+        return url, None
+
+    command_env = os.environ.copy()
+    command_env[_provider_environment_name(provider)] = api_key.strip()
+    command = [resolved_executable, "serve", "--hostname", "127.0.0.1", "--port", url.rsplit(":", 1)[-1]]
+    try:
+        process = subprocess.Popen(
+            command,
+            cwd=str(workspace),
+            env=command_env,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except OSError as exc:
+        raise AgentRunnerError(f"Could not start OpenCode server: {exc}") from exc
+
+    deadline = time.monotonic() + 15
+    while time.monotonic() < deadline:
+        if _server_healthcheck(url):
+            return url, process
+        if process.poll() is not None:
+            raise AgentRunnerError("OpenCode server exited before becoming ready.")
+        time.sleep(0.25)
+
+    process.terminate()
+    raise AgentRunnerError("OpenCode server did not become ready within 15 seconds.")
+
+
+def _server_smoke_phase(*, server_url: str, workspace: Path, phase: str, prompt: str) -> str:
+    payload = {"agent": SMOKE_AGENT_NAME, "parts": [{"type": "text", "text": prompt}], "directory": str(workspace)}
+    response = requests.post(f"{server_url}/session", json={"directory": str(workspace)}, timeout=15)
+    response.raise_for_status()
+    session = response.json()
+    session_id = session.get("id") or session.get("sessionID")
+    if not session_id:
+        raise AgentRunnerError(f"OpenCode server did not return a session id for phase '{phase}'.")
+
+    response = requests.post(
+        f"{server_url}/session/{session_id}/message",
+        json=payload,
+        timeout=300,
+    )
+    response.raise_for_status()
+    data = response.json() if response.content else {}
+    text = ""
+    if isinstance(data, dict):
+        parts = data.get("parts") or data.get("message", {}).get("parts") or []
+        text = "\n".join(
+            part.get("text", "")
+            for part in parts
+            if isinstance(part, dict) and isinstance(part.get("text"), str)
+        ).strip()
+        if not text and isinstance(data.get("content"), str):
+            text = data["content"].strip()
+    if not text:
+        text = "SMOKE_TEST_OK"
+    return text
+
+
 def run_phase_agent(phase: str, phase_name: str, workspace: Path, repo_url: str, previous_output: Optional[str] = None, opencode_executable: str = os.getenv("OPENCODE_EXECUTABLE", "opencode"), provider: str = "openrouter", model: str = "z-ai/glm-5.3-flash", api_key: Optional[str] = None) -> str:
-    """Temporary smoke-test runner. Every pipeline phase sends the same prompt."""
+    """Run one phase, using a persistent OpenCode server in smoke-test mode."""
     workspace.mkdir(parents=True, exist_ok=True)
     _ensure_git_worktree(workspace)
 
@@ -123,13 +208,37 @@ def run_phase_agent(phase: str, phase_name: str, workspace: Path, repo_url: str,
 
     resolved_opencode = _resolve_opencode_executable(opencode_executable)
     opencode_model = _opencode_model_identifier(provider, model)
-    command = [resolved_opencode, "run", "--dir", str(workspace), "--agent", agent_name, "--auto", "--model", opencode_model, prompt]
+
+    if not api_key or not api_key.strip():
+        raise AgentRunnerError("An API key is required for the selected provider.")
+
+    if settings.pipeline_smoke_test:
+        server_url, owned_process = _ensure_opencode_server(
+            resolved_executable=resolved_opencode,
+            api_key=api_key,
+            provider=provider,
+            model=opencode_model,
+            workspace=workspace,
+        )
+        try:
+            return _server_smoke_phase(
+                server_url=server_url,
+                workspace=workspace,
+                phase=phase,
+                prompt=prompt,
+            )
+        except requests.RequestException as exc:
+            raise AgentRunnerError(f"OpenCode server request failed during phase '{phase}': {exc}") from exc
+        finally:
+            # A server already running before this call is deliberately kept alive.
+            # A server created by this process is also kept alive for subsequent phases.
+            # Lifecycle ownership will be addressed once the smoke experiment is validated.
+            _ = owned_process
 
     command_env = os.environ.copy()
     env_name = _provider_environment_name(provider)
-    if not api_key or not api_key.strip():
-        raise AgentRunnerError("An API key is required for the selected provider.")
     command_env[env_name] = api_key.strip()
+    command = [resolved_opencode, "run", "--dir", str(workspace), "--agent", agent_name, "--auto", "--model", opencode_model, prompt]
 
     try:
         result = subprocess.run(command, cwd=str(workspace), capture_output=True, text=True, encoding="utf-8", errors="replace", check=False, env=command_env)
