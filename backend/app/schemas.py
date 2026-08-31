@@ -7,7 +7,8 @@ class AnalyzeRequest(BaseModel):
     work_id: str | None = None
     provider: str = "openrouter"
     model: str = "openrouter/free"
-    api_key: str
+    
+    api_key: str | None = None
 
 
 class AnalyzeResponse(BaseModel):

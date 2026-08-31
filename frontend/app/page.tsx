@@ -172,7 +172,9 @@ const providers: Provider[] = [
 
 export default function Home() { 
  
-  const [repoUrl, setRepoUrl] = useState("");
+  //const [repoUrl, setRepoUrl] = useState("");
+
+  const [repoUrl, setRepoUrl] = useState("https://github.com/nmuru/continuous-delivery-cloud-native-java-apps-2423655");
   const [provider, setProvider] = useState("openrouter");
   const [model, setModel] = useState("openrouter/free");
   const [apiKey, setApiKey] = useState("");
@@ -276,8 +278,8 @@ export default function Home() {
   async function analyze(event: FormEvent) {
     event.preventDefault();
 
-    if (!provider || !model.trim() || !apiKey.trim()) {
-      setError("Enter an AI provider, model, and API key before starting.");
+    if (!provider || !model.trim()) {
+      setError("Enter an AI provider and model before starting.");
       return;
     }
 
@@ -613,8 +615,7 @@ export default function Home() {
                     lineHeight: 1.5,
                   }}
                 >
-                  Your API key is used for this analysis request and is not
-                  saved by this frontend.
+                  Leave this blank to use the API key configured in the backend .env file.
                 </p>
               </div>
             </fieldset>
@@ -838,7 +839,7 @@ export default function Home() {
                     </label>
 
                     <p style={{ margin: 0, color: "var(--muted)", fontSize: 12, lineHeight: 1.5 }}>
-                      Your API key is used for this analysis request and is not saved by this frontend.
+                      Leave this blank to use the API key configured in the backend .env file.
                     </p>
                   </div>
                 </fieldset>

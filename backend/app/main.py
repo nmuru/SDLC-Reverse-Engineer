@@ -85,6 +85,11 @@ def analyze(request: AnalyzeRequest) -> StreamingResponse:
 
     def run_analysis() -> None:
         """Run analysis in a background thread so the HTTP stream stays open."""
+        api_key = request.api_key or settings.openrouter_api_key
+
+        if not api_key:
+            raise ValueError("OpenRouter API key is required.")
+        
         try:
             results = analyze_repository(
                 repo_url,
@@ -95,7 +100,7 @@ def analyze(request: AnalyzeRequest) -> StreamingResponse:
                 on_phase_complete=on_phase_complete,
                 provider=request.provider,
                 model=request.model,
-                api_key=request.api_key,
+                #api_key=request.api_key, 
             )
 
             event_queue.put(
