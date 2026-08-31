@@ -161,6 +161,7 @@ def _redact_diagnostic(
 _SERVER_URL = os.getenv("OPENCODE_SERVER_URL", "http://127.0.0.1:4096").rstrip("/")
 _SERVER_LOCK = threading.Lock()
 _SERVER_PROCESS: Optional[subprocess.Popen] = None
+_SERVER_STDERR_PATH = PROJECT_ROOT / "opencode-server-stderr.log"
 
 
 def _server_healthcheck(url: str) -> bool:
@@ -169,6 +170,11 @@ def _server_healthcheck(url: str) -> bool:
         return response.ok
     except requests.RequestException:
         return False
+
+
+def _server_error_text(response: requests.Response) -> str:
+    body = response.text.strip()
+    return body[:4000] if body else "<empty response body>"
 
 
 def _ensure_opencode_server(
@@ -204,12 +210,13 @@ def _ensure_opencode_server(
             port,
         ]
         try:
+            stderr_handle = open(_SERVER_STDERR_PATH, "w", encoding="utf-8")
             _SERVER_PROCESS = subprocess.Popen(
                 command,
                 cwd=str(workspace),
                 env=command_env,
-                stdout=subprocess.DEVNULL,
-                stderr=subprocess.DEVNULL,
+                stdout=stderr_handle,
+                stderr=stderr_handle,
             )
         except OSError as exc:
             raise AgentRunnerError(f"Could not start OpenCode server: {exc}") from exc
@@ -220,7 +227,7 @@ def _ensure_opencode_server(
                 return _SERVER_URL
             if _SERVER_PROCESS.poll() is not None:
                 raise AgentRunnerError(
-                    "OpenCode server exited before becoming ready."
+                    f"OpenCode server exited before becoming ready. See {_SERVER_STDERR_PATH}."
                 )
             time.sleep(0.25)
 
@@ -241,10 +248,14 @@ def _server_smoke_phase(
     """Create a per-phase session on the persistent server and wait for its reply."""
     response = requests.post(
         f"{server_url}/session",
-        json={"title": f"reverse-sdlc-smoke-{phase}", "directory": str(workspace)},
+        json={"title": f"reverse-sdlc-smoke-{phase}"},
         timeout=15,
     )
-    response.raise_for_status()
+    if not response.ok:
+        raise AgentRunnerError(
+            f"OpenCode server could not create a session for phase '{phase}': "
+            f"HTTP {response.status_code}: {_server_error_text(response)}"
+        )
     session = response.json()
     session_id = session.get("id") or session.get("sessionID")
     if not session_id:
@@ -252,19 +263,34 @@ def _server_smoke_phase(
             f"OpenCode server did not return a session id for phase '{phase}'."
         )
 
+    provider_id, model_id = model.split("/", 1)
     response = requests.post(
         f"{server_url}/session/{session_id}/message",
         json={
             "agent": SMOKE_AGENT_NAME,
             "model": {
-                "providerID": provider,
-                "modelID": model.split("/", 1)[-1],
+                "providerID": provider_id,
+                "model": model_id,
             },
             "parts": [{"type": "text", "text": prompt}],
         },
         timeout=300,
     )
-    response.raise_for_status()
+    if not response.ok:
+        server_log = ""
+        try:
+            if _SERVER_STDERR_PATH.exists():
+                server_log = _SERVER_STDERR_PATH.read_text(
+                    encoding="utf-8", errors="replace"
+                )[-4000:]
+        except OSError:
+            server_log = "<could not read server log>"
+        raise AgentRunnerError(
+            f"OpenCode server failed phase '{phase}': HTTP {response.status_code}; "
+            f"response: {_server_error_text(response)}; "
+            f"server log: {server_log or '<empty>'}"
+        )
+
     data = response.json() if response.content else {}
     parts = data.get("parts", []) if isinstance(data, dict) else []
     text = "\n".join(
