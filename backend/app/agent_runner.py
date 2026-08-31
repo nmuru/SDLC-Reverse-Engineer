@@ -75,7 +75,11 @@ def _log_smoke_workspace(workspace: Path, agent_name: str, prompt: str) -> None:
 
 
 def _opencode_model_identifier(provider: str, model: str) -> str:
-    return f"{provider.strip().lower()}/{model.strip()}"
+    provider_name = provider.strip().lower()
+    model_name = model.strip()
+    if model_name.lower().startswith(f"{provider_name}/"):
+        return model_name
+    return f"{provider_name}/{model_name}"
 
 
 def _resolve_opencode_executable(opencode_executable: str) -> str:
@@ -110,9 +114,6 @@ def run_phase_agent(phase: str, phase_name: str, workspace: Path, repo_url: str,
     workspace.mkdir(parents=True, exist_ok=True)
     _ensure_git_worktree(workspace)
 
-    # TEMPORARY DIAGNOSTIC HARNESS: deliberately unconditional. The analyzer may
-    # still traverse every selected phase, but every OpenCode invocation uses the
-    # same smoke agent and the same minimal prompt regardless of configuration.
     _copy_smoke_test_agent(workspace)
     _write_smoke_test_opencode_config(workspace, provider, model)
     _write_smoke_test_prompt_file(workspace)
