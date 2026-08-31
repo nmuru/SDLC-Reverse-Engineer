@@ -1,8 +1,8 @@
 """Lightweight runtime resource diagnostics for pipeline smoke/performance tests.
 
-The monitor is intentionally side-effect-light: it samples the current Python
-process and host memory/CPU and appends JSONL records. It is disabled by
-configuration by default so normal application runs are unaffected.
+The monitor samples the FastAPI process, its descendant process tree, and host
+memory/CPU and appends JSONL records. It is disabled by configuration by
+default so normal application runs are unaffected.
 """
 
 from __future__ import annotations
@@ -11,7 +11,6 @@ import json
 import logging
 import os
 import threading
-import time
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any, Optional
@@ -22,7 +21,7 @@ logger = logging.getLogger(__name__)
 
 
 class ResourceDiagnostics:
-    """Record periodic process/system resource samples and phase events."""
+    """Record periodic process-tree/system resource samples and phase events."""
 
     def __init__(
         self,
@@ -133,25 +132,72 @@ class ResourceDiagnostics:
         while not self._stop_event.wait(self.sample_interval_seconds):
             self.sample()
 
+    def _collect_process_tree(self) -> dict[str, Any]:
+        """Collect RSS/CPU for the monitored process and all descendants."""
+        processes: list[dict[str, Any]] = []
+        seen: set[int] = set()
+        total_rss = 0
+        total_private = 0
+        total_cpu = 0.0
+
+        try:
+            candidates = [self._process, *self._process.children(recursive=True)]
+        except (psutil.NoSuchProcess, psutil.AccessDenied):
+            candidates = [self._process]
+
+        for proc in candidates:
+            try:
+                if proc.pid in seen or not proc.is_running():
+                    continue
+                seen.add(proc.pid)
+                memory = proc.memory_info()
+                cpu = proc.cpu_percent(interval=None)
+                rss_mb = round(memory.rss / 1024 / 1024, 2)
+                private_mb = round(getattr(memory, "private", 0) / 1024 / 1024, 2)
+                total_rss += memory.rss
+                total_private += getattr(memory, "private", 0)
+                total_cpu += cpu
+                try:
+                    name = proc.name()
+                    cmdline = " ".join(proc.cmdline())[:500]
+                except (psutil.NoSuchProcess, psutil.AccessDenied):
+                    name = "<unavailable>"
+                    cmdline = ""
+                processes.append(
+                    {
+                        "pid": proc.pid,
+                        "name": name,
+                        "rss_mb": rss_mb,
+                        "private_mb": private_mb,
+                        "cpu_percent": round(cpu, 2),
+                        "cmdline": cmdline,
+                    }
+                )
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+
+        return {
+            "root_pid": self._process.pid,
+            "process_count": len(processes),
+            "total_rss_mb": round(total_rss / 1024 / 1024, 2),
+            "total_private_mb": round(total_private / 1024 / 1024, 2),
+            "total_cpu_percent": round(total_cpu, 2),
+            "processes": processes,
+        }
+
     def sample(self) -> None:
         if not self.enabled:
             return
         try:
-            memory = self._process.memory_info()
+            process_tree = self._collect_process_tree()
             virtual = psutil.virtual_memory()
-            cpu = self._process.cpu_percent(interval=None)
             with self._lock:
                 active_phases = list(self._active_phases.values())
 
             self._write_record(
                 {
                     "event": "sample",
-                    "process": {
-                        "pid": self._process.pid,
-                        "rss_mb": round(memory.rss / 1024 / 1024, 2),
-                        "vms_mb": round(memory.vms / 1024 / 1024, 2),
-                        "cpu_percent": round(cpu, 2),
-                    },
+                    "process_tree": process_tree,
                     "system": {
                         "total_ram_mb": round(virtual.total / 1024 / 1024, 2),
                         "available_ram_mb": round(virtual.available / 1024 / 1024, 2),
@@ -181,6 +227,7 @@ class ResourceDiagnostics:
 
     @staticmethod
     def _now() -> str:
+        from datetime import datetime, timezone
         return datetime.now(timezone.utc).isoformat()
 
     def _close_file(self) -> None:
