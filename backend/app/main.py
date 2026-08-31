@@ -92,16 +92,17 @@ def analyze(request: AnalyzeRequest) -> StreamingResponse:
         
         try:
             results = analyze_repository(
-                repo_url,
-                phases_per_batch=settings.phases_per_batch,
-                batch_mode=settings.batch_mode,
-                selected_phases=request.selected_phases,
-                work_id=request.work_id,
-                on_phase_complete=on_phase_complete,
-                provider=request.provider,
-                model=request.model,
-                #api_key=request.api_key, 
-            )
+            repo_url,
+            phases_per_batch=settings.phases_per_batch,
+            batch_mode=settings.batch_mode,
+            selected_phases=request.selected_phases,
+            work_id=request.work_id,
+            on_phase_complete=on_phase_complete,
+            provider=request.provider,
+            model=request.model,
+            api_key=api_key,
+        )
+            
 
             event_queue.put(
                 {

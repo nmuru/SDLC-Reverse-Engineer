@@ -199,7 +199,11 @@ def render_analysis(
 
     smoke_test = settings.pipeline_smoke_test
     if smoke_test:
-        if analysis.strip() != SMOKE_TEST_RESPONSE:
+        # Free/aggregated models may append provider or environment information
+        # despite being instructed to return only the smoke-test marker. The
+        # marker at the start is sufficient to prove the upstream LLM call
+        # completed successfully.
+        if not analysis.strip().startswith(SMOKE_TEST_RESPONSE):
             raise RuntimeError(
                 "Smoke-test renderer received unexpected analysis output: "
                 f"{analysis[:200]!r}"
@@ -239,9 +243,14 @@ def render_analysis(
             "Supported providers are: openrouter, openai, anthropic, google"
         )
 
-    if smoke_test and rendered != SMOKE_TEST_RESPONSE:
-        raise RuntimeError(
-            f"Smoke-test renderer returned an unexpected response: {rendered[:200]!r}"
-        )
+    if smoke_test:
+        # Apply the same tolerant validation to the renderer response. Normalize
+        # the successful result to the sentinel so downstream smoke-test stages
+        # remain deterministic even when the provider appends extra text.
+        if not rendered.strip().startswith(SMOKE_TEST_RESPONSE):
+            raise RuntimeError(
+                f"Smoke-test renderer returned an unexpected response: {rendered[:200]!r}"
+            )
+        return SMOKE_TEST_RESPONSE
 
     return rendered
