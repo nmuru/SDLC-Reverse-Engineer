@@ -239,11 +239,9 @@ def _server_smoke_phase(
     prompt: str,
 ) -> str:
     """Create a per-phase session on the persistent server and wait for its reply."""
-    # The OpenCode server's sessions are server-side resources. Each phase gets
-    # its own session and workspace, while the heavyweight server process is reused.
     response = requests.post(
         f"{server_url}/session",
-        json={"title": f"reverse-sdlc-smoke-{phase}"},
+        json={"title": f"reverse-sdlc-smoke-{phase}", "directory": str(workspace)},
         timeout=15,
     )
     response.raise_for_status()
@@ -258,7 +256,10 @@ def _server_smoke_phase(
         f"{server_url}/session/{session_id}/message",
         json={
             "agent": SMOKE_AGENT_NAME,
-            "model": {"providerID": provider, "modelID": model.split("/", 1)[-1]},
+            "model": {
+                "providerID": provider,
+                "modelID": model.split("/", 1)[-1],
+            },
             "parts": [{"type": "text", "text": prompt}],
         },
         timeout=300,
