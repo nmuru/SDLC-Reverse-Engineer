@@ -127,10 +127,7 @@ const phaseResultMap: Record<Phase["id"], keyof AnalysisResult> = {
 };
 
 // const API_BASE_URL = "https://reverse-engineer-sdlc.onrender.com";
-
 const API_BASE_URL = "http://localhost:8000";
-
-   
 
 const DEMO_REPO_URL = "https://github.com/vercel/commerce";
 const DEMO_RUN_ID = "vercel-demo";
@@ -170,11 +167,8 @@ const providers: Provider[] = [
   },
 ];
 
-export default function Home() { 
- 
-  //const [repoUrl, setRepoUrl] = useState("");
-
-  const [repoUrl, setRepoUrl] = useState("https://github.com/nmuru/continuous-delivery-cloud-native-java-apps-2423655");
+export default function Home() {
+  const [repoUrl, setRepoUrl] = useState("");
   const [provider, setProvider] = useState("openrouter");
   const [model, setModel] = useState("openrouter/free");
   const [apiKey, setApiKey] = useState("");
@@ -278,8 +272,8 @@ export default function Home() {
   async function analyze(event: FormEvent) {
     event.preventDefault();
 
-    if (!provider || !model.trim()) {
-      setError("Enter an AI provider and model before starting.");
+    if (!provider || !model.trim() || !apiKey.trim()) {
+      setError("Enter an AI provider, model, and API key before starting.");
       return;
     }
 
@@ -615,7 +609,8 @@ export default function Home() {
                     lineHeight: 1.5,
                   }}
                 >
-                  Leave this blank to use the API key configured in the backend .env file.
+                  Your API key is used for this analysis request and is not
+                  saved by this frontend.
                 </p>
               </div>
             </fieldset>
@@ -694,12 +689,9 @@ export default function Home() {
               model, provider, and applicable free-tier limits.
             </p>
 
-
-
             <div className="landing-note">
               Analysis is performed by the backend coding-agent pipeline.
             </div>
-
           </div>
         </main>
       ) : (
@@ -749,11 +741,9 @@ export default function Home() {
                     <span className="phase-number">
                       {String(index + 1).padStart(2, "0")}
                     </span>
-
                     <span className="phase-name">
                       {phase.label}
                     </span>
-
                     <span
                       className={`phase-status ${
                         complete ? "done" : ""
@@ -839,7 +829,7 @@ export default function Home() {
                     </label>
 
                     <p style={{ margin: 0, color: "var(--muted)", fontSize: 12, lineHeight: 1.5 }}>
-                      Leave this blank to use the API key configured in the backend .env file.
+                      Your API key is used for this analysis request and is not saved by this frontend.
                     </p>
                   </div>
                 </fieldset>
@@ -889,22 +879,19 @@ export default function Home() {
                   Analysis is performed by the backend coding-agent pipeline.
                 </div>
               </section>
-                        ) : error ? (
+            ) : error ? (
               <>
                 {analysisResult && completedPhases.length > 0 && activeResult ? (
                   <section className="dossier-content">
                     <div className="eyebrow">
                       PARTIAL ANALYSIS
                     </div>
-
                     <h2>{activePhaseDefinition.label}</h2>
-
                     <p className="section-intro">
                       {completedPhases.length} of {phases.length} phases
                       completed. The analysis stopped because the
                       remaining work could not be completed.
                     </p>
-
                     <article className="evidence-card markdown-content">
                       <ReactMarkdown
                         remarkPlugins={[remarkGfm]}
@@ -927,16 +914,13 @@ export default function Home() {
                       <div className="eyebrow">
                         ANALYSIS FAILED
                       </div>
-
                       <h1>
                         The repository could not be fully analyzed.
                       </h1>
-
                       <p>{error}</p>
                     </div>
                   </section>
                 )}
-
                 {completedPhases.length > 0 && (
                   <div className="section-intro">
                     {error}
@@ -950,43 +934,33 @@ export default function Home() {
                     <div className="eyebrow">
                       EXAMPLE DOCUMENTATION
                     </div>
-
                     <h1>
                       Vercel Commerce software dossier
                     </h1>
-
                     <p>
                       Browse the pre-generated eleven-phase reverse-engineering
                       documentation. Use “+ New repository” to analyze your own
                       GitHub repository.
                     </p>
                   </div>
-
                   <div className="completion-mark">
                     ✓
                   </div>
                 </section>
-
                 <section className="dossier-content">
                   <div className="eyebrow">
                     STAGE{" "}
                     {String(
                       phases.findIndex(
-                        (phase) =>
-                          phase.id === activePhase,
+                        (phase) => phase.id === activePhase,
                       ) + 1,
                     ).padStart(2, "0")}
                   </div>
-
-                  <h2>
-                    {activePhaseDefinition.label}
-                  </h2>
-
+                  <h2>{activePhaseDefinition.label}</h2>
                   <p className="section-intro">
                     Pre-generated reverse-engineering documentation for the
                     Vercel Commerce repository.
                   </p>
-
                   <article className="evidence-card markdown-content">
                     {activeResult ? (
                       <ReactMarkdown
@@ -1000,7 +974,6 @@ export default function Home() {
                                 />
                               );
                             }
-
                             return (
                               <code className={className} {...props}>
                                 {children}
@@ -1027,21 +1000,17 @@ export default function Home() {
                       <div className="eyebrow">
                         REVERSE ENGINEERING COMPLETE
                       </div>
-
                       <h1>
                         Your software dossier is ready.
                       </h1>
-
                       <p>
                         Visit the individual SDLC tabs on the left
                         to explore the reconstructed system.
                       </p>
                     </div>
-
                     <div className="completion-mark">
                       ✓
                     </div>
-
                     {runId && analysisComplete && !isDemo && (
                       <a
                         className="download-button"
@@ -1056,16 +1025,13 @@ export default function Home() {
                 ) : (
                   <section className="progress-screen">
                     <div className="spinner" />
-
                     <div>
                       <div className="eyebrow">
                         ANALYSIS IN PROGRESS
                       </div>
-
                       <h1>
                         Results are arriving progressively
                       </h1>
-
                       <p>
                         {completedPhases.length} of {phases.length} phases
                         have completed. You can read completed phases
@@ -1074,39 +1040,32 @@ export default function Home() {
                     </div>
                   </section>
                 )}
-
                 <section className="dossier-content">
                   <div className="eyebrow">
                     STAGE{" "}
                     {String(
                       phases.findIndex(
-                        (phase) =>
-                          phase.id === activePhase,
+                        (phase) => phase.id === activePhase,
                       ) + 1,
                     ).padStart(2, "0")}
                   </div>
-
-                  <h2>
-                    {activePhaseDefinition.label}
-                  </h2>
-
+                  <h2>{activePhaseDefinition.label}</h2>
                   <p className="section-intro">
                     Analysis returned by the backend coding-agent
                     pipeline for this SDLC phase.
                   </p>
-
                   <article className="evidence-card markdown-content">
                     <ReactMarkdown
-                        remarkPlugins={[remarkGfm]}
-                        components={{
-                          code({ className, children, ...props }) {
-                            if (/language-mermaid/.test(className || "")) {
-                              return <MermaidDiagram chart={String(children).replace(/\n$/, "")} />;
-                            }
-                            return <code className={className} {...props}>{children}</code>;
-                          },
-                        }}
-                      >
+                      remarkPlugins={[remarkGfm]}
+                      components={{
+                        code({ className, children, ...props }) {
+                          if (/language-mermaid/.test(className || "")) {
+                            return <MermaidDiagram chart={String(children).replace(/\n$/, "")} />;
+                          }
+                          return <code className={className} {...props}>{children}</code>;
+                        },
+                      }}
+                    >
                       {activeResult}
                     </ReactMarkdown>
                   </article>
@@ -1115,22 +1074,18 @@ export default function Home() {
             ) : loading ? (
               <section className="progress-screen">
                 <div className="spinner" />
-
                 <div>
                   <div className="eyebrow">
                     ANALYSIS IN PROGRESS
                   </div>
-
                   <h1>
                     Reverse engineering the repository
                   </h1>
-
                   <p>
                     The backend coding agent is analyzing the
                     repository. Completed phases will appear here
                     as soon as they are ready.
                   </p>
-
                   {completionMessages.length > 0 && (
                     <div className="completion-messages" aria-live="polite">
                       {completionMessages.map((message) => (
